@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/zhangtingmin/Desktop/Sino_Viet/**)",
+      "Bash(python -m markitdown \"Sino-Vietnam Proposal.docx\")",
+      "Bash(pip install:*)",
+      "Bash(python -m markitdown \"/Users/zhangtingmin/Desktop/Sino_Viet/Sino-Vietnam Proposal.docx\")",
+      "Bash(python3 -c \"from markitdown import MarkItDown; md = MarkItDown\\(\\); result = md.convert\\(''/Users/zhangtingmin/Desktop/Sino_Viet/Sino-Vietnam Proposal.docx''\\); print\\(result.text_content\\)\")",
+      "Bash(python3 -c \"import markitdown; print\\(markitdown.__version__\\)\")",
+      "Bash(python3 -c \":*)",
+      "Bash(npm list:*)",
+      "Bash(npm install:*)",
+      "Bash(mkdir -p /tmp/pptx-build)",
+      "Read(//tmp/**)",
+      "Bash(npm init:*)",
+      "Bash(node create_pptx.js)",
+      "Bash(python3 \"/Users/zhangtingmin/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/313dd5f2-5462-4337-8d18-21d74f3a38f0/fa9f7172-94d8-4c6c-86dc-3fd755aa5f0c/skills/pptx/scripts/office/soffice.py\" --headless --convert-to pdf \"Sino-Vietnam-Proposal.pptx\")",
+      "Bash(python3 -m markitdown /Users/zhangtingmin/Desktop/Sino_Viet/Sino-Vietnam-Proposal.pptx)",
+      "Bash(uv tool:*)",
+      "Bash(zotero-mcp setup:*)"
+    ]
+  }
+}
