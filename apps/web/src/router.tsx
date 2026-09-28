@@ -1,6 +1,6 @@
 import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router';
 import { isValidDate, isValidWeekKey } from '@researchpilot/core/week';
-import { AppShell, NotFound } from '@/components/layout/app-shell';
+import { NotFound, RootLayout } from '@/components/layout/app-shell';
 import { ChecksPage } from '@/pages/checks-page';
 import { HistoryPage } from '@/pages/history-page';
 import { InboxPage } from '@/pages/inbox-page';
@@ -8,8 +8,9 @@ import { MapPage } from '@/pages/map-page';
 import { ProjectPage } from '@/pages/project-page';
 import { TodayPage } from '@/pages/today-page';
 import { WeekPage } from '@/pages/week-page';
+import { WidgetPage } from '@/pages/widget-page';
 
-const rootRoute = createRootRoute({ component: AppShell, notFoundComponent: NotFound });
+const rootRoute = createRootRoute({ component: RootLayout, notFoundComponent: NotFound });
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -55,6 +56,8 @@ const historyRoute = createRoute({
   component: HistoryPage,
 });
 
+const widgetRoute = createRoute({ getParentRoute: () => rootRoute, path: '/widget', component: WidgetPage });
+
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
@@ -65,6 +68,7 @@ export const router = createRouter({
     inboxRoute,
     checksRoute,
     historyRoute,
+    widgetRoute,
   ]),
   defaultPreload: 'intent',
   scrollRestoration: true,

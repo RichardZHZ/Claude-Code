@@ -85,3 +85,15 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+/* 桌面小窗（/widget）：窗口本身透明，只显示圆角卡片；标题栏和底栏用来拖动窗口。 */
+html.widget,
+html.widget body {
+  background: transparent;
+}
+.widget-drag {
+  -webkit-app-region: drag;
+}
+.widget-no-drag {
+  -webkit-app-region: no-drag;
+}

@@ -29,9 +29,9 @@
   - 入口：`@researchpilot/core`（服务端）、`/config`（桌面主进程）、`/contracts`、`/enums`、`/week`、`/health-rules`（前端可用）、`/testing`（仅测试）。
 - `apps/api`：Hono，只做路由、参数校验（`validate.ts`）和序列化，调用 core。路由按领域放在 `src/routes/`。`createApp({ db, today, zotero, backup })` 可注入依赖，测试用 `app.request()`。`src/server.ts` 负责打开数据库、迁移、定时备份和监听；`src/index.ts` 是开发入口（只有 /api），`src/serve.ts` 是正式入口（`web.ts` 托管 `apps/web/dist`）。
 - `apps/web`：React 19 + Vite + Tailwind v4 + shadcn/ui（new-york 风格）+ TanStack Router（代码式路由，`src/router.tsx`）+ TanStack Query。路径别名 `@/` 指向 `src/`。
-  - `src/pages/` 七个页面（今日、本周、议题地图、课题、收件箱、提醒、回顾）；`src/components/tasks/` 任务相关的复用组件；`src/lib/queries.ts` 查询与写操作（`useAction` 成功后刷新全部数据并弹提示）。
+  - `src/pages/` 七个页面（今日、本周、议题地图、课题、收件箱、提醒、回顾），另有给桌面小窗用的 `/widget`（不带侧栏，由 `RootLayout` 区分）；`src/components/tasks/` 任务相关的复用组件；`src/lib/queries.ts` 查询与写操作（`useAction` 成功后刷新全部数据并弹提示）。
 - `apps/mcp`：stdio MCP 服务器（`@modelcontextprotocol/sdk`），只调用 core。`src/server.ts` 注册 `rp_` 前缀的工具和三个提示，`src/format.ts` 输出给 Claude 看的 Markdown；`bin/researchpilot-mcp.mjs` 用 tsx 直接运行源码，根目录 `.mcp.json` 已登记。stdio 下标准输出只能传协议消息，日志写 stderr。测试用 SDK 的 `InMemoryTransport`。
-- `apps/desktop`：Electron 桌面应用。`src/main.ts` 主进程：选端口（优先 8787）、以子进程运行打包好的服务（打包后用 `ELECTRON_RUN_AS_NODE`，开发时用系统 node）、打开窗口、外部链接交给系统、菜单里可复制 MCP 登记命令。`scripts/bundle.mjs` 用 esbuild 把主进程、`apps/api/src/serve.ts`、`apps/mcp/src/index.ts` 各打成一个文件；`scripts/package.mjs` 整理到 `.stage/` 再交给 electron-builder（`builder.config.cjs`）。better-sqlite3 用自带的 N-API 预编译文件，不为 Electron 重新编译。
+- `apps/desktop`：Electron 桌面应用。`src/main.ts` 主进程：选端口（优先 8787）、以子进程运行打包好的服务（打包后用 `ELECTRON_RUN_AS_NODE`，开发时用系统 node）、打开窗口、外部链接交给系统、菜单里可复制 MCP 登记命令、开关桌面小窗和开机自启。`src/widget.ts` 是桌面小窗：无边框透明窗口加载网页的 `/widget` 页面，位置和开关状态存在 userData 里。`scripts/bundle.mjs` 用 esbuild 把主进程、`apps/api/src/serve.ts`、`apps/mcp/src/index.ts` 各打成一个文件；`scripts/package.mjs` 整理到 `.stage/` 再交给 electron-builder（`builder.config.cjs`）。better-sqlite3 用自带的 N-API 预编译文件，不为 Electron 重新编译。
 - API、web、mcp、desktop 都不直接依赖 drizzle-orm。
 
 ## 约定

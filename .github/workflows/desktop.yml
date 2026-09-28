@@ -76,6 +76,7 @@ jobs:
             sleep 1
           done
           curl -sf http://127.0.0.1:8787/today | grep -q '<title>'
+          curl -sf http://127.0.0.1:8787/widget | grep -q '<title>'
           kill $pid
           wait $pid || true
           cat "$RUNNER_TEMP/rp/logs/desktop.log"

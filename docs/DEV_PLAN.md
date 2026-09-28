@@ -209,6 +209,7 @@ DailyPlan  日计划 ── 从本周任务中选 Top 3，当日日志，晚间�
 - 默认数据目录从仓库的 `data/` 改为系统的用户数据目录，桌面应用、`pnpm start` 和 MCP 共用一份数据。
 - MCP 服务器也打进应用，菜单里一键复制 `claude mcp add` 命令，不装 Node.js 也能在 Claude Code 里使用。
 - GitHub Actions 在 macOS 上打包 arm64、x64 两个 .dmg 并试启动；推送 `v*` 标签时发布到 Releases。没有 Apple 开发者证书，使用 ad-hoc 签名，第一次打开需手动放行。
+- 桌面小窗（0.2.0）：网页新增 `/widget` 页面，桌面应用用一个无边框透明窗口显示它。macOS 上放在普通窗口下一层（`setAlwaysOnTop(true, 'normal', -1)`），像贴在桌面上又能点击；没有用系统小组件（WidgetKit），因为那需要 Swift 另写并且必须有付费的开发者签名。
 
 ---
 
