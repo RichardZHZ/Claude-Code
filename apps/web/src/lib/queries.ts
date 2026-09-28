@@ -9,8 +9,7 @@ import type {
   ZoteroItemDto,
   CreateTaskInput,
   HealthReportDto,
-  ReviewEntryDto,
-  ReviewKind,
+  CountdownDto,
   DayViewDto,
   InboxListDto,
   OwnerOptionsDto,
@@ -123,8 +122,12 @@ export const useActivityFeed = (filter: { projectId?: number }, pageSize = 15) =
     pageSize,
   );
 
-export const useReviewTimeline = (kind: ReviewKind | undefined, pageSize = 20) =>
-  usePagedList<ReviewEntryDto>(['reviews'], '/reviews', kind ? { kind } : {}, pageSize);
+/** 设了倒计时的议题（截止早的在前）。剩余时间由 useNow 按秒在前端计算，不需要反复请求。 */
+export const useCountdowns = () =>
+  useQuery({
+    queryKey: ['countdowns'],
+    queryFn: ({ signal }) => api.get<CountdownDto[]>('/countdowns', signal),
+  });
 
 /**
  * 写操作。成功后刷新所有数据（单用户本地应用，数据量小，全部刷新最简单可靠），

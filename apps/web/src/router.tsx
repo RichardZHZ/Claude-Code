@@ -2,7 +2,6 @@ import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/
 import { isValidDate, isValidWeekKey } from '@researchpilot/core/week';
 import { NotFound, RootLayout } from '@/components/layout/app-shell';
 import { ChecksPage } from '@/pages/checks-page';
-import { HistoryPage } from '@/pages/history-page';
 import { InboxPage } from '@/pages/inbox-page';
 import { MapPage } from '@/pages/map-page';
 import { ProjectPage } from '@/pages/project-page';
@@ -48,14 +47,6 @@ const inboxRoute = createRoute({ getParentRoute: () => rootRoute, path: '/inbox'
 
 const checksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/checks', component: ChecksPage });
 
-const historyRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/history',
-  validateSearch: (search: Record<string, unknown>): { k?: 'week' | 'day' } =>
-    search.k === 'week' || search.k === 'day' ? { k: search.k } : {},
-  component: HistoryPage,
-});
-
 const widgetRoute = createRoute({ getParentRoute: () => rootRoute, path: '/widget', component: WidgetPage });
 
 export const router = createRouter({
@@ -67,7 +58,6 @@ export const router = createRouter({
     projectRoute,
     inboxRoute,
     checksRoute,
-    historyRoute,
     widgetRoute,
   ]),
   defaultPreload: 'intent',

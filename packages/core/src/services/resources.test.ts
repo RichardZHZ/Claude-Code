@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb, type Db } from '../db.ts';
 import { DomainError } from '../errors.ts';
 import { runMigrations } from '../migrate.ts';
-import { resources, reviews } from '../schema.ts';
+import { resources } from '../schema.ts';
 import { fakeZoteroFetch } from '../testing/fake-zotero.ts';
 import { createZoteroClient } from '../zotero.ts';
 import { listActivity } from './activity.ts';
-import { getWeekView, saveWeekReview } from './plans.ts';
+import { getWeekView } from './plans.ts';
 import { createProject, deleteProject } from './projects.ts';
 import {
   addResource,
@@ -107,19 +107,15 @@ describe('资源', () => {
     ).toEqual(['theme']);
   });
 
-  it('本周新关联的文献出现在周视图和周复盘快照里', async () => {
+  it('本周新关联的文献出现在周视图里', async () => {
     const { project } = setup();
     await linkZoteroItem(db, zotero, owner(project.id), 'OKE1982A');
     // 关联时间是"现在"，所以落在本机日期所在的这一周。
     const weekKey = isoWeekKey(toDateString(new Date()));
     expect(literatureLinkedInWeek(db, weekKey).map((r) => r.ref)).toEqual(['OKE1982A']);
     expect(literatureLinkedInWeek(db, shiftWeek(weekKey, -1))).toEqual([]);
-    expect(getWeekView(db, weekKey).literature).toHaveLength(1);
-
-    saveWeekReview(db, weekKey, { wins: [], blockers: [], carryOver: [], reflection: '' });
-    const [snapshot] = db.select().from(reviews).all();
-    expect(snapshot?.stats).toMatchObject({
-      literature: ['Oke (1982) The energetic basis of the urban heat island'],
-    });
+    expect(getWeekView(db, weekKey).literature.map((r) => r.label)).toEqual([
+      'Oke (1982) The energetic basis of the urban heat island',
+    ]);
   });
 });

@@ -6,8 +6,10 @@ import {
   PROJECT_STATUS_LABELS,
   TASK_STATUS_LABELS,
   THEME_STATUS_LABELS,
+  describeCountdown,
   weekdayOf,
   type ActivityView,
+  type Countdown,
   type DayPlanDraft,
   type DayView,
   type DraftTask,
@@ -16,11 +18,9 @@ import {
   type MilestoneDue,
   type ProjectDetail,
   type ResourceView,
-  type ReviewEntry,
   type TaskView,
   type ThemeMap,
   type WeekPlanDraft,
-  type WeekReviewDraft,
   type WeekView,
   type ZoteroItem,
 } from '@researchpilot/core';
@@ -87,6 +87,8 @@ export function formatThemeMap(map: ThemeMap): string {
     out.push(
       `\n## 议题 #${th.id} ${th.title}（${THEME_STATUS_LABELS[th.status]}）· 任务 ${th.progress.done}/${th.progress.total}`,
     );
+    if (th.countdownAt)
+      out.push(`倒计时：${dateTime(th.countdownAt)} 截止（${describeCountdown(th.countdownAt)}）`);
     if (th.coreQuestions.length) out.push(`核心问题：${th.coreQuestions.join('；')}`);
     for (const p of th.projects) out.push(projectSummaryLine(p));
     if (th.openTasks.length) out.push(`议题下未完成的任务：\n${taskLines(th.openTasks, { context: false })}`);
@@ -166,13 +168,6 @@ export function formatWeek(w: WeekView): string {
   out.push(`\n## 待办池（未排期，前 15 项）\n${taskLines(w.backlog.slice(0, 15))}`);
   if (w.literature.length)
     out.push(`\n## 本周关联的文献\n${bullets(w.literature.map((r) => r.label ?? r.ref))}`);
-  out.push(
-    `\n## 周复盘\n${
-      w.plan.review
-        ? `收获：${w.plan.review.wins.join('；') || '无'}\n阻碍：${w.plan.review.blockers.join('；') || '无'}\n带入下周：${w.plan.review.carryOver.join('；') || '无'}\n反思：${w.plan.review.reflection || '无'}`
-        : '（还没写）'
-    }`,
-  );
   return out.join('\n');
 }
 
@@ -184,18 +179,27 @@ export function formatDay(d: DayView): string {
   ];
   if (d.carryOver.length) out.push(`\n## 待接手（之前排了没做完）\n${taskLines(d.carryOver)}`);
   out.push(`\n## 本周任务池（未定日期）\n${taskLines(d.weekPool)}`);
-  out.push(`\n## 工作日志\n${d.plan.journal || '（空）'}`);
-  out.push(
-    `\n## 晚间复盘\n${
-      d.plan.review
-        ? `完成：${d.plan.review.done || '无'}\n阻碍：${d.plan.review.blockers || '无'}\n明天先做：${d.plan.review.tomorrow || '无'}`
-        : '（还没写）'
-    }`,
-  );
   return out.join('\n');
 }
 
-// ---------- 提醒、复盘、动态、收件箱 ----------
+// ---------- 倒计时、提醒、动态、收件箱 ----------
+
+/** 本机时间的 '2027年6月30日 18:00:00'。 */
+export function dateTime(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+export function remaining(at: Date, now: Date): string {
+  return describeCountdown(at, now);
+}
+
+export function formatCountdowns(list: Countdown[], now: Date): string {
+  if (!list.length) return '还没有设倒计时的议题。';
+  return list
+    .map((c) => `- 议题 #${c.themeId} ${c.title}：${dateTime(c.at)} 截止，${describeCountdown(c.at, now)}`)
+    .join('\n');
+}
 
 const SEVERITY = { danger: '紧急', warning: '注意', info: '提示' } as const;
 
@@ -203,40 +207,10 @@ export function formatIssues(issues: HealthIssue[]): string {
   if (!issues.length) return '一切正常：没有需要处理的提醒。';
   return issues
     .map((i) => {
-      const target =
-        i.target.type === 'week'
-          ? `周 ${i.target.weekKey}`
-          : `${i.target.type === 'project' ? '课题' : '议题'} #${i.target.id}`;
+      const target = `${i.target.type === 'project' ? '课题' : '议题'} #${i.target.id}`;
       return `- 【${SEVERITY[i.severity]}】${i.title}（${target}）\n  ${i.detail}`;
     })
     .join('\n');
-}
-
-export function formatReviews(list: ReviewEntry[]): string {
-  if (!list.length) return '还没有复盘记录。';
-  return list
-    .map((r) => {
-      const head = `## #${r.id} ${r.kind === 'week' ? `周复盘 ${r.periodKey}` : `日复盘 ${mdw(r.periodKey)}`}${r.versions > 1 ? `（修改过 ${r.versions} 次）` : ''}`;
-      const c = r.content as Record<string, unknown>;
-      const stats = r.stats as Record<string, unknown>;
-      const body =
-        r.kind === 'week'
-          ? [
-              `完成 ${String(stats.done)}/${String(stats.total)}`,
-              `收获：${(c.wins as string[]).join('；') || '无'}`,
-              `阻碍：${(c.blockers as string[]).join('；') || '无'}`,
-              `带入下周：${(c.carryOver as string[]).join('；') || '无'}`,
-              `反思：${String(c.reflection || '无')}`,
-            ]
-          : [
-              `完成 ${String(stats.done)}/${String(stats.total)}`,
-              `完成了：${String(c.done || '无')}`,
-              `阻碍：${String(c.blockers || '无')}`,
-              `明天先做：${String(c.tomorrow || '无')}`,
-            ];
-      return `${head}\n${body.join('\n')}`;
-    })
-    .join('\n\n');
 }
 
 export function formatActivity(list: ActivityView[]): string {
@@ -272,23 +246,6 @@ export function formatDayPlanDraft(d: DayPlanDraft): string {
     `\n## 当前已选的最重要的事\n${d.currentTopTaskIds.length ? d.currentTopTaskIds.map((id) => `#${id}`).join('、') : '（还没选）'}`,
     `\n## 今天已完成\n${taskLines(d.doneToday, { schedule: false })}`,
   ].join('\n');
-}
-
-export function formatWeekReviewDraft(d: WeekReviewDraft): string {
-  return [
-    `# ${d.weekKey} 周复盘草稿（${md(d.start)} – ${md(d.end)}）`,
-    `完成 ${d.stats.done}/${d.stats.total} 项任务`,
-    `\n## 本周重点\n${bullets(d.focus, '（没写）')}`,
-    `\n## 建议的收获\n${bullets(d.suggested.wins)}`,
-    `\n## 建议的阻碍\n${bullets(d.suggested.blockers)}`,
-    `\n## 建议带入下周\n${bullets(d.suggested.carryOver)}`,
-    `\n## 本周关联的文献\n${bullets(d.literature)}`,
-    d.existingReview
-      ? `\n## 已保存的复盘\n收获：${d.existingReview.wins.join('；')}\n反思：${d.existingReview.reflection}`
-      : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
 }
 
 export function formatZoteroItems(items: ZoteroItem[]): string {

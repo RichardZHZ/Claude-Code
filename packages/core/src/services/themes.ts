@@ -1,8 +1,9 @@
-import { asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, ne, sql } from 'drizzle-orm';
 import type { CreateThemeInput, UpdateThemeInput } from '../contracts.ts';
 import type { Conn } from '../db.ts';
 import { notFound } from '../errors.ts';
 import { themes, type NewTheme, type Theme } from '../schema.ts';
+import type { Countdown } from '../types.ts';
 import { diffFields, logActivity } from './activity.ts';
 import { pruneOrphanResources } from './resources.ts';
 
@@ -28,6 +29,7 @@ export function createTheme(db: Conn, input: CreateThemeInput): Theme {
     status: input.status ?? 'active',
     startedAt: input.startedAt ?? null,
     reviewCadenceDays: input.reviewCadenceDays ?? 30,
+    countdownAt: input.countdownAt ?? null,
   };
   const theme = db.insert(themes).values(values).returning().get();
   logActivity(db, {
@@ -49,6 +51,7 @@ export function updateTheme(db: Conn, id: number, patch: UpdateThemeInput): Them
   if (patch.status !== undefined) set.status = patch.status;
   if (patch.startedAt !== undefined) set.startedAt = patch.startedAt;
   if (patch.reviewCadenceDays !== undefined) set.reviewCadenceDays = patch.reviewCadenceDays;
+  if (patch.countdownAt !== undefined) set.countdownAt = patch.countdownAt;
   const changes = diffFields(existing, set);
   if (Object.keys(changes).length === 0) return existing;
   db.update(themes).set(set).where(eq(themes.id, id)).run();
@@ -61,6 +64,17 @@ export function updateTheme(db: Conn, id: number, patch: UpdateThemeInput): Them
     payload: { title: theme.title, changes },
   });
   return theme;
+}
+
+/** 设了倒计时、且没有结束的议题，截止时刻早的在前（已过期的排在最前）。 */
+export function listCountdowns(db: Conn): Countdown[] {
+  return db
+    .select({ themeId: themes.id, title: themes.title, status: themes.status, at: themes.countdownAt })
+    .from(themes)
+    .where(and(isNotNull(themes.countdownAt), ne(themes.status, 'closed')))
+    .orderBy(asc(themes.countdownAt), asc(themes.id))
+    .all()
+    .map((r) => ({ ...r, at: r.at! }));
 }
 
 /** 删除议题：其下课题保留但解除关联；直接挂在议题下的任务一并删除。 */

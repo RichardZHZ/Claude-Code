@@ -126,6 +126,7 @@ const FIELD_LABELS: Record<string, string> = {
   dueDate: '目标日期',
   currentStatus: '现状',
   reviewCadenceDays: '回顾周期',
+  countdownAt: '倒计时',
   estimateMin: '预估时间',
   themeId: '所属议题',
   projectId: '所属课题',

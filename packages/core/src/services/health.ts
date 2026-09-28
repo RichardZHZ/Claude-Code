@@ -1,9 +1,8 @@
-import { inArray } from 'drizzle-orm';
 import type { Conn } from '../db.ts';
 import { evaluateHealth, type HealthSnapshot } from '../rules/health.ts';
-import { milestones, projects, tasks, themes, weeklyPlans } from '../schema.ts';
+import { milestones, projects, tasks, themes } from '../schema.ts';
 import type { HealthReport } from '../types.ts';
-import { isoWeekKey, shiftWeek, toDateString } from '../week.ts';
+import { toDateString } from '../week.ts';
 import { lastActivityByProject } from './activity.ts';
 
 function latest(...dates: (Date | null | undefined)[]): Date {
@@ -39,15 +38,6 @@ export function buildHealthSnapshot(db: Conn, today: string): HealthSnapshot {
       ...milestoneRows.filter((m) => m.projectId === p.id).map((m) => m.updatedAt),
     );
 
-  const thisWeek = isoWeekKey(today);
-  const weekKeys = [shiftWeek(thisWeek, -1), thisWeek];
-  const plans = db.select().from(weeklyPlans).where(inArray(weeklyPlans.weekKey, weekKeys)).all();
-  const weekTaskCounts = db
-    .select({ weekKey: tasks.weekKey })
-    .from(tasks)
-    .where(inArray(tasks.weekKey, weekKeys))
-    .all();
-
   return {
     today,
     themes: themeRows.map((t) => ({
@@ -78,15 +68,6 @@ export function buildHealthSnapshot(db: Conn, today: string): HealthSnapshot {
     openTasks: taskRows
       .filter((t) => t.status !== 'done')
       .map((t) => ({ projectId: t.projectId, themeId: t.themeId, status: t.status })),
-    weeks: weekKeys.map((weekKey) => {
-      const plan = plans.find((p) => p.weekKey === weekKey);
-      return {
-        weekKey,
-        hasPlan: (plan?.focus.length ?? 0) > 0,
-        taskCount: weekTaskCounts.filter((t) => t.weekKey === weekKey).length,
-        reviewed: plan?.reviewedAt != null,
-      };
-    }),
   };
 }
 

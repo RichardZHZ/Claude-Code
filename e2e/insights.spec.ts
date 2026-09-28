@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
-// 第二阶段：提醒、复盘历史、课题动态、日历导出。
+// 提醒、议题倒计时、课题动态、日历导出。
 // 用接口准备自己的数据，不依赖其他测试文件的执行顺序。
 
 test.describe.configure({ mode: 'serial' });
@@ -73,35 +73,60 @@ test('课题页显示最近动态', async ({ page }) => {
   await expect(feed.getByText(`新建课题"${PROJECT}"`)).toBeVisible();
 });
 
-test('保存复盘后出现在回顾时间线，并可按类型筛选', async ({ page }) => {
-  // 晚间复盘保存两次：时间线只显示最新一版，并注明修改次数
-  await page.goto('/today');
-  const review = page.getByTestId('day-review');
-  await review.getByLabel('今天完成了什么').fill('测温点位确定');
-  await review.getByRole('button', { name: '保存复盘' }).click();
-  await expect(review.getByText(/已于 \d{2}:\d{2} 复盘/)).toBeVisible();
-  await review.getByLabel('今天完成了什么').fill('测温点位确定，布设了温度计');
-  await review.getByRole('button', { name: '保存复盘' }).click();
+test('议题倒计时：在议题里设定，今日、本周、议题地图和桌面小窗按秒显示', async ({ page, request }) => {
+  // 在议题地图编辑议题，填上倒计时截止
+  await page.goto('/map');
+  await page.getByRole('button', { name: '编辑议题：城市绿地' }).click();
+  await page.getByLabel('倒计时截止').fill('2099-06-30T18:00:15');
+  await page.getByRole('button', { name: '保存' }).click();
+  await expect(page.getByText('议题已更新')).toBeVisible();
+  const card = page.getByTestId('theme-card').filter({ hasText: '城市绿地' });
+  await expect(card.getByTestId('theme-countdown')).toContainText('2099年6月30日 18:00:15 截止');
 
-  // 周复盘
+  // 今日页：倒计时在原来日志和复盘的位置，按秒跳动
+  await page.getByRole('link', { name: '今日' }).click();
+  const countdown = page
+    .getByTestId('countdown-card')
+    .getByTestId('countdown')
+    .filter({ hasText: '城市绿地' });
+  const timer = countdown.getByRole('timer');
+  await expect(timer).toHaveAttribute('aria-label', /^还剩 \d+ 天 \d+ 小时 \d+ 分 \d+ 秒$/);
+  const before = await timer.getAttribute('aria-label');
+  await expect(timer).not.toHaveAttribute('aria-label', before!, { timeout: 3000 });
+  await expect(page.getByTestId('day-review')).toHaveCount(0);
+
+  // 本周页：同样的倒计时，周复盘已经移除
   await page.getByRole('link', { name: '本周' }).click();
-  const weekReview = page.getByTestId('week-review');
-  await weekReview.getByLabel('反思').fill('野外工作比预想的慢。');
-  await weekReview.getByRole('button', { name: '保存周复盘' }).click();
-  await expect(weekReview.getByText(/已于 \d{2}:\d{2} 保存/)).toBeVisible();
+  await expect(page.getByTestId('countdown-card')).toContainText('城市绿地');
+  await expect(page.getByTestId('week-review')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: '回顾' })).toHaveCount(0);
 
-  await page.getByRole('link', { name: '回顾' }).click();
-  const timeline = page.getByTestId('review-timeline');
-  const day = timeline.locator('[data-kind="day"]').filter({ hasText: '布设了温度计' });
-  await expect(day).toBeVisible();
-  await expect(day).toContainText(/共修改 \d+ 次/);
-  await expect(
-    timeline.locator('[data-kind="week"]').filter({ hasText: '野外工作比预想的慢。' }),
-  ).toBeVisible();
+  // 桌面小窗顶部
+  await page.goto('/widget');
+  await expect(page.getByTestId('widget-countdowns')).toContainText('城市绿地');
+  await expect(page.getByTestId('widget-countdown').getByRole('timer')).toHaveAttribute(
+    'aria-label',
+    /^还剩/,
+  );
 
-  await page.getByRole('tab', { name: '周复盘' }).click();
-  await expect(timeline.locator('[data-kind="day"]')).toHaveCount(0);
-  await expect(timeline.locator('[data-kind="week"]').first()).toBeVisible();
+  // 已过的截止时刻显示"已超过"
+  const themes = (await (await request.get('/api/themes')).json()) as { id: number; title: string }[];
+  const theme = themes.find((t) => t.title === '城市绿地')!;
+  await request.patch(`/api/themes/${theme.id}`, { data: { countdownAt: '2020-01-01T00:00:00Z' } });
+  await page.reload();
+  await expect(page.getByTestId('widget-countdown').getByRole('timer')).toHaveAttribute(
+    'aria-label',
+    /^已超过/,
+  );
+
+  // 清除倒计时
+  await page.goto('/map');
+  await page.getByRole('button', { name: '编辑议题：城市绿地' }).click();
+  await page.getByRole('button', { name: '清除' }).click();
+  await page.getByRole('button', { name: '保存' }).click();
+  await expect(card.getByTestId('theme-countdown')).toHaveCount(0);
+  await page.getByRole('link', { name: '今日' }).click();
+  await expect(page.getByTestId('countdown-card')).toContainText('还没有议题设了倒计时');
 });
 
 test('日历导出包含未完成的截止日期', async ({ page, request }) => {

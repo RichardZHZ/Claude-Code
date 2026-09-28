@@ -31,29 +31,29 @@ MCP 服务器运行时也会按时自动备份，只用 Claude、不开网页也
 - "看看我今天该做什么" → 概览、日计划草稿
 - "帮我排本周计划" 或斜杠命令 `/mcp__researchpilot__plan_week`
 - "帮我挑今天最重要的三件事" 或 `/mcp__researchpilot__plan_day`
-- "帮我写这周的复盘" 或 `/mcp__researchpilot__review_week`
+- "还剩多少天答辩" → 概览里的议题倒计时
+- "把博士论文议题的倒计时设到明年 6 月 30 日下午 6 点" → 设定倒计时
 - "热岛论文那个课题现在进展怎样" → 课题详情、最近动态
 - "把刚读的 Oke 1982 关联到热岛课题" → 搜索 Zotero、关联文献
 - "记一下：试试换一种识别策略" → 记进收件箱
 
-计划和复盘的草稿由固定规则算出，每条建议都附理由。Claude 负责整理成自然的文字、和你商量。所有写入都会先给你看、等你确认。
+计划的草稿由固定规则算出，每条建议都附理由。Claude 负责整理成自然的文字、和你商量。所有写入都会先给你看、等你确认。
 
 ## 工具一览
 
 | 类别 | 工具 | 作用 |
 | --- | --- | --- |
-| 读取 | `rp_get_overview` | 今天的安排、本周重点与完成度、提醒、收件箱数量 |
-| | `rp_list_themes` | 议题地图：议题 → 课题 → 里程碑与进度 |
+| 读取 | `rp_get_overview` | 议题倒计时、今天的安排、本周重点与完成度、提醒、收件箱数量 |
+| | `rp_list_themes` | 议题地图：议题（含倒计时）→ 课题 → 里程碑与进度 |
 | | `rp_get_project` | 课题详情：现状、里程碑、任务、文献与链接、最近动态 |
 | | `rp_list_tasks` | 按课题、议题、周、日期、状态筛选任务（分页） |
 | | `rp_get_week` / `rp_get_day` | 周视图、日视图 |
 | | `rp_health_report` | 健康检查提醒 |
-| | `rp_list_reviews` / `rp_list_activity` / `rp_list_inbox` | 复盘历史、活动记录、收件箱 |
+| | `rp_list_activity` / `rp_list_inbox` | 活动记录、收件箱 |
 | 草稿 | `rp_draft_week_plan` | 建议的本周重点、建议加入本周的任务及理由 |
 | | `rp_draft_day_plan` | 建议的今天最重要的 3 件事及理由 |
-| | `rp_draft_week_review` | 本周完成、达成的里程碑、阻碍、带入下周、关联的文献 |
-| 写入 | `rp_save_week_plan` / `rp_save_day_plan` | 保存本周重点、今天最重要的事或工作日志 |
-| | `rp_save_week_review` / `rp_save_day_review` | 保存复盘（每次保存都留下历史记录） |
+| 写入 | `rp_save_week_plan` / `rp_save_day_plan` | 保存本周重点、今天最重要的事 |
+| | `rp_set_countdown` | 设定或取消议题倒计时的截止时刻 |
 | | `rp_create_task` / `rp_update_task` | 新建、修改任务（状态、排期、归属） |
 | | `rp_update_project` / `rp_create_milestone` | 更新课题现状与状态、新建里程碑 |
 | | `rp_capture_inbox` / `rp_promote_inbox` | 记进收件箱、整理成任务/课题/议题 |

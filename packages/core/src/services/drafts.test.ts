@@ -2,9 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb, type Db } from '../db.ts';
 import { runMigrations } from '../migrate.ts';
 import { activityLog, projects, tasks } from '../schema.ts';
-import { draftDayPlan, draftWeekPlan, draftWeekReview } from './drafts.ts';
-import { createMilestone, updateMilestone } from './milestones.ts';
-import { saveDayReview, saveWeekPlan, saveWeekReview } from './plans.ts';
+import { draftDayPlan, draftWeekPlan } from './drafts.ts';
+import { createMilestone } from './milestones.ts';
 import { createProject } from './projects.ts';
 import { createTask, updateTask } from './tasks.ts';
 import { createTheme } from './themes.ts';
@@ -20,7 +19,7 @@ beforeEach(() => {
 const TODAY = '2026-09-28';
 
 describe('周计划草稿', () => {
-  it('建议重点：上周带入、本周与下周到期的里程碑、临近截止的课题', () => {
+  it('建议重点：本周与下周到期的里程碑、临近截止的课题', () => {
     const theme = createTheme(db, { title: '城市热岛' });
     const paper = createProject(db, {
       title: '论文',
@@ -32,11 +31,9 @@ describe('周计划草稿', () => {
     createMilestone(db, paper.id, { title: '初稿', dueDate: '2026-10-02' });
     createMilestone(db, paper.id, { title: '内审', dueDate: '2026-10-08' });
     createMilestone(db, paper.id, { title: '远期', dueDate: '2026-12-01' });
-    saveWeekReview(db, '2026-W39', { wins: [], blockers: [], carryOver: ['补充稳健性检验'], reflection: '' });
 
     const draft = draftWeekPlan(db, '2026-W40', TODAY);
     expect(draft.suggestedFocus).toEqual([
-      '补充稳健性检验（上周带入）',
       '完成里程碑"初稿"（论文，10月2日到期）',
       '推进里程碑"内审"（论文，下周10月8日到期）',
       '推进课题"基金"（10月20日截止）',
@@ -100,35 +97,5 @@ describe('日计划草稿', () => {
     expect(draft.suggestedTop[2]?.reasons).toContain('从9月27日延续下来');
     expect(draft.otherCandidates.map((d) => d.task.id)).toContain(blocked.id);
     expect(draft.doneToday.map((t) => t.title)).toEqual(['做完了']);
-  });
-});
-
-describe('周复盘草稿', () => {
-  it('汇总完成的任务、达成的里程碑、阻碍和带入下周的事', () => {
-    const p = createProject(db, { title: '论文' });
-    const m = createMilestone(db, p.id, { title: '数据清洗' });
-    const a = createTask(db, { title: '清洗数据', projectId: p.id, weekKey: '2026-W40' });
-    createTask(db, { title: '跑回归', projectId: p.id, weekKey: '2026-W40' });
-    createTask(db, { title: '等数据授权', projectId: p.id, weekKey: '2026-W40', status: 'blocked' });
-    updateTask(db, a.id, { status: 'done' });
-    updateMilestone(db, m.id, { done: true });
-    saveWeekPlan(db, '2026-W40', { focus: ['完成数据清洗'] });
-    saveDayReview(db, TODAY, { done: '', blockers: '服务器宕机半天', tomorrow: '' });
-
-    // 活动日志按真实时间记录；把它们挪到 W40 内，模拟"本周发生"。
-    db.update(activityLog)
-      .set({ at: new Date('2026-09-29T10:00:00') })
-      .run();
-
-    const draft = draftWeekReview(db, '2026-W40');
-    expect(draft.stats).toEqual({ done: 1, total: 3 });
-    expect(draft.focus).toEqual(['完成数据清洗']);
-    expect(draft.suggested).toEqual({
-      wins: ['达成里程碑"数据清洗"', '完成"清洗数据"（论文）'],
-      blockers: ['"等数据授权"受阻', '9月28日：服务器宕机半天'],
-      carryOver: ['跑回归'],
-      reflection: '',
-    });
-    expect(draft.existingReview).toBeNull();
   });
 });

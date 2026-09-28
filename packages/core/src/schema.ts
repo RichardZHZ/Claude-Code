@@ -3,7 +3,6 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-o
 import {
   ACTIVITY_ACTIONS,
   ENTITY_TYPES,
-  REVIEW_KINDS,
   PROJECT_KINDS,
   PROJECT_STATUSES,
   PROMOTE_TYPES,
@@ -37,6 +36,8 @@ export const themes = sqliteTable('themes', {
   status: text('status', { enum: THEME_STATUSES }).notNull().default('active'),
   startedAt: text('started_at'),
   reviewCadenceDays: integer('review_cadence_days').notNull().default(30),
+  /** 倒计时的截止时刻（精确到秒），没有设置则为空。 */
+  countdownAt: integer('countdown_at', { mode: 'timestamp_ms' }),
   ...timestamps,
 });
 
@@ -111,37 +112,19 @@ export const tasks = sqliteTable(
   ],
 );
 
-export type WeeklyReview = {
-  wins: string[];
-  blockers: string[];
-  carryOver: string[];
-  reflection: string;
-};
-
-/** 周计划：本周重点 + 周末复盘。任务通过 tasks.week_key 关联，不复制。 */
+/** 周计划：本周重点。任务通过 tasks.week_key 关联，不复制。 */
 export const weeklyPlans = sqliteTable('weekly_plans', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   weekKey: text('week_key').notNull().unique(),
   focus: text('focus', { mode: 'json' }).$type<string[]>().notNull().default([]),
-  review: text('review', { mode: 'json' }).$type<WeeklyReview>(),
-  reviewedAt: integer('reviewed_at', { mode: 'timestamp_ms' }),
   ...timestamps,
 });
 
-export type DailyReview = {
-  done: string;
-  blockers: string;
-  tomorrow: string;
-};
-
-/** 日计划：当日 Top 3 任务、工作日志、晚间复盘。 */
+/** 日计划：当天最重要的事（最多 3 件）。 */
 export const dailyPlans = sqliteTable('daily_plans', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   date: text('date').notNull().unique(),
   topTaskIds: text('top_task_ids', { mode: 'json' }).$type<number[]>().notNull().default([]),
-  journal: text('journal'),
-  review: text('review', { mode: 'json' }).$type<DailyReview>(),
-  reviewedAt: integer('reviewed_at', { mode: 'timestamp_ms' }),
   ...timestamps,
 });
 
@@ -221,43 +204,6 @@ export const activityLog = sqliteTable(
   ],
 );
 
-export type WeekReviewStats = {
-  focus: string[];
-  done: number;
-  total: number;
-  completed: string[];
-  unfinished: string[];
-  /** 本周新关联的文献（引文）。第三阶段起记录。 */
-  literature?: string[];
-};
-
-export type DayReviewStats = {
-  topTasks: { title: string; done: boolean }[];
-  done: number;
-  total: number;
-};
-
-/**
- * 复盘快照：每保存一次复盘就追加一条，从不修改或删除，构成研究历史。
- * weekly_plans / daily_plans 里的 review 字段只保存最新一版，方便继续编辑。
- */
-export const reviews = sqliteTable(
-  'reviews',
-  {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    kind: text('kind', { enum: REVIEW_KINDS }).notNull(),
-    /** 周复盘为 'YYYY-Www'，日复盘为 'YYYY-MM-DD'。 */
-    periodKey: text('period_key').notNull(),
-    content: text('content', { mode: 'json' }).$type<WeeklyReview | DailyReview>().notNull(),
-    /** 保存时自动统计的完成情况。 */
-    stats: text('stats', { mode: 'json' }).$type<WeekReviewStats | DayReviewStats>().notNull(),
-    createdAt: integer('created_at', { mode: 'timestamp_ms' })
-      .notNull()
-      .$defaultFn(() => new Date()),
-  },
-  (t) => [index('reviews_period_idx').on(t.kind, t.periodKey)],
-);
-
 export type Theme = typeof themes.$inferSelect;
 export type NewTheme = typeof themes.$inferInsert;
 export type Project = typeof projects.$inferSelect;
@@ -271,4 +217,3 @@ export type DailyPlan = typeof dailyPlans.$inferSelect;
 export type InboxItem = typeof inboxItems.$inferSelect;
 export type Resource = typeof resources.$inferSelect;
 export type ActivityLogEntry = typeof activityLog.$inferSelect;
-export type Review = typeof reviews.$inferSelect;

@@ -9,7 +9,6 @@ import {
   DomainError,
   draftDayPlan,
   draftWeekPlan,
-  draftWeekReview,
   getDayView,
   getHealthReport,
   getProjectDetail,
@@ -18,20 +17,19 @@ import {
   isoWeekKey,
   linkZoteroItem,
   listActivity,
+  listCountdowns,
   listInbox,
   listResources,
-  listReviews,
   listTasks,
   promoteInboxItem,
   saveDayPlan,
-  saveDayReview,
   saveWeekPlan,
-  saveWeekReview,
   startOfLocalDay,
   addDays,
   toDateString,
   updateProject,
   updateTask,
+  updateTheme,
   type Db,
   type ZoteroClient,
 } from '@researchpilot/core';
@@ -41,14 +39,12 @@ import {
   createMilestoneInput,
   createTaskInput,
   dayPlanInput,
-  dayReviewInput,
   promoteInboxInput,
   updateProjectInput,
   updateTaskInput,
+  updateThemeInput,
   weekPlanInput,
-  weekReviewInput,
   PROJECT_STATUSES,
-  REVIEW_KINDS,
   RESOURCE_OWNER_TYPES,
   TASK_STATUSES,
 } from '@researchpilot/core/contracts';
@@ -63,12 +59,13 @@ export type ServerOptions = {
 
 export const SERVER_INSTRUCTIONS = `科研小助理（ResearchPilot）：用户本地的科研管理工具。
 结构：研究议题（长期方向）→ 课题（论文、基金等有交付物的工作）→ 里程碑 → 任务；任务再被排进周计划和日计划。
+议题可以设一个倒计时截止时刻（例如毕业、基金截止），rp_get_overview 会列出剩余时间。
 所有对象都用 #编号 引用，例如 课题 #3、任务 #12。
 
 使用原则：
 1. 先读后写：先用 rp_get_overview、rp_get_week、rp_get_day 或 rp_list_themes 了解现状。
-2. 计划与复盘先用 rp_draft_* 取草稿。草稿里的建议和理由由固定规则算出，你负责把它整理成自然、简洁的中文，和用户商量。
-3. 任何写入（rp_save_*、rp_create_*、rp_update_*、rp_link_*、rp_add_link、rp_promote_inbox）都要先把将要写入的内容给用户看，得到确认后再调用。
+2. 计划先用 rp_draft_* 取草稿。草稿里的建议和理由由固定规则算出，你负责把它整理成自然、简洁的中文，和用户商量。
+3. 任何写入（rp_save_*、rp_create_*、rp_update_*、rp_set_*、rp_link_*、rp_add_link、rp_promote_inbox）都要先把将要写入的内容给用户看，得到确认后再调用。
 4. 提醒（rp_health_report）是确定性规则的结果，不要自行改写结论，只解释和给建议。
 5. 日期用 YYYY-MM-DD，周用 ISO 周编号 YYYY-Www（例如 2026-W40）。不传时默认今天、本周。`;
 
@@ -170,7 +167,7 @@ export function createServer({
     {
       title: '今天的概览',
       description:
-        '一次看清现在的状态：今天最重要的事与安排、待接手的任务、本周重点与完成度、需要注意的提醒、收件箱待处理数量。开始任何对话时先调用它。',
+        '一次看清现在的状态：议题倒计时、今天最重要的事与安排、待接手的任务、本周重点与完成度、需要注意的提醒、收件箱待处理数量。开始任何对话时先调用它。',
       inputSchema: { date: dateArg.optional().describe('要看的日期，默认今天') },
       annotations: READ,
     },
@@ -181,8 +178,10 @@ export function createServer({
       const health = getHealthReport(db, today());
       const inbox = listInbox(db);
       const done = week.tasks.filter((t) => t.status === 'done').length;
+      const countdowns = listCountdowns(db);
       return text(
         [
+          ...(countdowns.length > 0 ? [`# 倒计时\n${F.formatCountdowns(countdowns, new Date())}\n`] : []),
           F.formatDay(day),
           `\n# 本周（${week.weekKey}）\n重点：${week.plan.focus.join('；') || '（还没写）'}\n任务完成 ${done}/${week.tasks.length}`,
           `\n# 提醒\n${F.formatIssues(health.issues.filter((i) => i.severity !== 'info'))}`,
@@ -278,7 +277,7 @@ export function createServer({
     'rp_get_week',
     {
       title: '周视图',
-      description: '查看某一周的重点、任务、到期里程碑、之前没做完的任务、待办池、关联的文献和周复盘。',
+      description: '查看某一周的重点、任务、到期里程碑、之前没做完的任务、待办池和本周关联的文献。',
       inputSchema: { week_key: weekArg.optional().describe('默认本周'), response_format: responseFormat },
       annotations: READ,
     },
@@ -292,7 +291,7 @@ export function createServer({
     'rp_get_day',
     {
       title: '日视图',
-      description: '查看某一天最重要的事、当天安排、待接手任务、本周任务池、工作日志和晚间复盘。',
+      description: '查看某一天最重要的事、当天安排、待接手任务和本周任务池。',
       inputSchema: { date: dateArg.optional().describe('默认今天'), response_format: responseFormat },
       annotations: READ,
     },
@@ -307,33 +306,13 @@ export function createServer({
     {
       title: '健康检查',
       description:
-        '按固定规则检查：有风险或逾期的里程碑、停滞的课题、漏写的周复盘、已结束课题下的遗留任务、没有进行中课题的议题。结论由规则决定，请据实转述。',
+        '按固定规则检查：有风险或逾期的里程碑、停滞的课题、已结束课题下的遗留任务、没有进行中课题的议题。结论由规则决定，请据实转述。',
       inputSchema: { response_format: responseFormat },
       annotations: READ,
     },
     safe(({ response_format }) => {
       const report = getHealthReport(db, today());
       return output(response_format, report, () => F.formatIssues(report.issues));
-    }),
-  );
-
-  server.registerTool(
-    'rp_list_reviews',
-    {
-      title: '复盘历史',
-      description:
-        '按时间倒序列出周复盘和日复盘（每个周期取最新一版）。用 before 传上一页最后一条的编号来翻页。',
-      inputSchema: {
-        kind: z.enum(REVIEW_KINDS).optional().describe('week 周复盘 / day 日复盘，默认两者都要'),
-        limit: z.number().int().min(1).max(50).default(10),
-        before: idArg.optional().describe('翻页：只取编号小于它的记录'),
-        response_format: responseFormat,
-      },
-      annotations: READ,
-    },
-    safe(({ kind, limit, before, response_format }) => {
-      const list = listReviews(db, defined({ kind, limit, before }));
-      return output(response_format, list, () => F.formatReviews(list));
     }),
   );
 
@@ -378,7 +357,7 @@ export function createServer({
     {
       title: '周计划草稿',
       description:
-        '按规则生成一周计划草稿：建议的本周重点（上周带入、临近的里程碑、临近截止的课题）、建议加入本周的任务及理由、临近的里程碑和提醒。只读，不会写入。',
+        '按规则生成一周计划草稿：建议的本周重点（临近的里程碑、临近截止的课题、高优先级课题）、建议加入本周的任务及理由、临近的里程碑和提醒。只读，不会写入。',
       inputSchema: { week_key: weekArg.optional().describe('默认本周') },
       annotations: READ,
     },
@@ -395,18 +374,6 @@ export function createServer({
       annotations: READ,
     },
     safe(({ date }) => text(F.formatDayPlanDraft(draftDayPlan(db, date ?? today(), today())))),
-  );
-
-  server.registerTool(
-    'rp_draft_week_review',
-    {
-      title: '周复盘草稿',
-      description:
-        '按规则整理一周的复盘要点：完成的任务、达成的里程碑、受阻的任务和每日复盘里记下的阻碍、没做完要带入下周的任务、关联的文献。只读，不会写入。',
-      inputSchema: { week_key: weekArg.optional().describe('默认本周') },
-      annotations: READ,
-    },
-    safe(({ week_key }) => text(F.formatWeekReviewDraft(draftWeekReview(db, week_key ?? thisWeek())))),
   );
 
   // ======================= 写入 =======================
@@ -609,21 +576,15 @@ export function createServer({
     'rp_save_day_plan',
     {
       title: '保存日计划',
-      description:
-        '设定某天最重要的事（最多 3 个任务编号，会自动排到这一天），或写工作日志。只传其中一项时另一项不变。',
+      description: '设定某天最重要的事（最多 3 个任务编号，会自动排到这一天）。会整体替换原来的设定。',
       inputSchema: {
         date: dateArg.optional().describe('默认今天'),
-        top_task_ids: z.array(idArg).max(3).optional().describe('最重要的事，按先后顺序'),
-        journal: z.string().max(20000).optional().describe('工作日志，会整体替换原来的内容'),
+        top_task_ids: z.array(idArg).max(3).describe('最重要的事，按先后顺序；传空数组表示清空'),
       },
       annotations: SAVE,
     },
-    safe(({ date, top_task_ids, journal }) => {
-      const day = saveDayPlan(
-        db,
-        date ?? today(),
-        dayPlanInput.parse(defined({ topTaskIds: top_task_ids, journal })),
-      );
+    safe(({ date, top_task_ids }) => {
+      const day = saveDayPlan(db, date ?? today(), dayPlanInput.parse({ topTaskIds: top_task_ids }));
       return text(
         `已保存 ${F.mdw(day.date)} 的日计划。\n最重要的事：\n${F.taskLines(day.topTasks, { schedule: false }, '（未设）')}`,
       );
@@ -631,45 +592,26 @@ export function createServer({
   );
 
   server.registerTool(
-    'rp_save_week_review',
+    'rp_set_countdown',
     {
-      title: '保存周复盘',
-      description: '保存某周的复盘。每次保存都会追加一份不可修改的历史记录。',
+      title: '设定议题倒计时',
+      description:
+        '给研究议题设定倒计时的截止时刻（例如毕业答辩、基金截止），或取消倒计时。桌面小窗和今日页会按秒显示剩余时间。',
       inputSchema: {
-        week_key: weekArg.optional().describe('默认本周'),
-        wins: z.array(z.string().max(500)).describe('收获与进展'),
-        blockers: z.array(z.string().max(500)).describe('阻碍'),
-        carry_over: z.array(z.string().max(500)).describe('带入下周的事'),
-        reflection: z.string().max(5000).describe('反思'),
+        theme_id: idArg.describe('议题编号'),
+        at: z
+          .string()
+          .nullable()
+          .describe('截止时刻，ISO 8601 并带时区，例如 2027-06-30T18:00:00+08:00；传 null 取消倒计时'),
       },
       annotations: SAVE,
     },
-    safe(({ week_key, wins, blockers, carry_over, reflection }) => {
-      const week = saveWeekReview(
-        db,
-        week_key ?? thisWeek(),
-        weekReviewInput.parse({ wins, blockers, carryOver: carry_over, reflection }),
+    safe(({ theme_id, at }) => {
+      const theme = updateTheme(db, theme_id, updateThemeInput.parse({ countdownAt: at }));
+      if (!theme.countdownAt) return text(`已取消议题 #${theme.id} ${theme.title} 的倒计时。`);
+      return text(
+        `已把议题 #${theme.id} ${theme.title} 的倒计时设为 ${F.dateTime(theme.countdownAt)}（${F.remaining(theme.countdownAt, new Date())}）。`,
       );
-      return text(`已保存 ${week.weekKey} 的周复盘。`);
-    }),
-  );
-
-  server.registerTool(
-    'rp_save_day_review',
-    {
-      title: '保存晚间复盘',
-      description: '保存某天的晚间复盘。每次保存都会追加一份不可修改的历史记录。',
-      inputSchema: {
-        date: dateArg.optional().describe('默认今天'),
-        done: z.string().max(5000).describe('今天完成了什么'),
-        blockers: z.string().max(5000).describe('遇到的阻碍'),
-        tomorrow: z.string().max(5000).describe('明天先做什么'),
-      },
-      annotations: SAVE,
-    },
-    safe(({ date, done, blockers, tomorrow }) => {
-      const day = saveDayReview(db, date ?? today(), dayReviewInput.parse({ done, blockers, tomorrow }));
-      return text(`已保存 ${F.mdw(day.date)} 的晚间复盘。`);
     }),
   );
 
@@ -755,7 +697,7 @@ export function createServer({
     'plan_week',
     {
       title: '一起排本周计划',
-      description: '根据里程碑、上周复盘和待办池，和你商量本周重点和要做的任务。',
+      description: '根据里程碑、之前没做完的任务和待办池，和你商量本周重点和要做的任务。',
       argsSchema: { week_key: z.string().optional().describe('周编号，例如 2026-W40，默认本周') },
     },
     ({ week_key }) => ({
@@ -791,29 +733,6 @@ export function createServer({
 1. 调用 rp_draft_day_plan${date ? `（date=${date}）` : ''} 取草稿。
 2. 告诉我建议的最重要的 3 件事和理由，以及之前没做完、需要接手的任务。
 3. 等我确认后，调用 rp_save_day_plan 保存最重要的事。没有我的确认不要写入。`,
-          },
-        },
-      ],
-    }),
-  );
-
-  server.registerPrompt(
-    'review_week',
-    {
-      title: '一起写周复盘',
-      description: '整理本周完成了什么、卡在哪里、下周要带入什么，并写一段反思。',
-      argsSchema: { week_key: z.string().optional().describe('周编号，默认本周') },
-    },
-    ({ week_key }) => ({
-      messages: [
-        {
-          role: 'user',
-          content: {
-            type: 'text',
-            text: `请帮我写${week_key ? ` ${week_key} ` : '本周'}的周复盘：
-1. 调用 rp_draft_week_review${week_key ? `（week_key=${week_key}）` : ''} 取草稿。
-2. 把收获、阻碍、带入下周整理成简洁的条目；再问我一两个问题，帮我写一段简短的反思（不要替我编造感受）。
-3. 等我确认后调用 rp_save_week_review 保存，并提醒我把"带入下周"的事排进下周。没有我的确认不要写入。`,
           },
         },
       ],

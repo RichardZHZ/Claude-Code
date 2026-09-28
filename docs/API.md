@@ -23,6 +23,9 @@
 | GET | `/themes/:id` | 单个议题 |
 | PATCH | `/themes/:id` | 修改议题 |
 | DELETE | `/themes/:id` | 删除议题（课题保留，议题下的任务删除） |
+| GET | `/countdowns` | 设了倒计时、未结束的议题 `[{ themeId, title, status, at }]`，截止早的在前 |
+
+新建或修改议题时可以传 `countdownAt`：ISO 8601 时刻并带时区，例如 `"2027-06-30T18:00:15+08:00"`；传 `null` 取消倒计时。剩余时间由前端按秒计算，接口只存截止时刻。
 
 ## 课题与里程碑
 
@@ -59,12 +62,10 @@
 
 | 方法 | 路径 | 作用 |
 | --- | --- | --- |
-| GET | `/weeks/:weekKey` | 周视图：重点、本周任务、待接手、待办池、到期里程碑、复盘 |
+| GET | `/weeks/:weekKey` | 周视图：重点、本周任务、待接手、待办池、到期里程碑、本周关联的文献 |
 | PUT | `/weeks/:weekKey/plan` | 保存本周重点 `{ focus: string[] }` |
-| PUT | `/weeks/:weekKey/review` | 保存周复盘 |
-| GET | `/days/:date` | 日视图：最重要的事、当天安排、待接手、本周任务池、日志、复盘 |
-| PUT | `/days/:date/plan` | 保存最重要的事 `{ topTaskIds }` 或日志 `{ journal }` |
-| PUT | `/days/:date/review` | 保存晚间复盘 |
+| GET | `/days/:date` | 日视图：最重要的事、当天安排、待接手、本周任务池 |
+| PUT | `/days/:date/plan` | 保存最重要的事 `{ topTaskIds }` |
 
 `weekKey` 形如 `2026-W40`，`date` 形如 `2026-09-28`。设为最重要的事的任务会被自动排到当天。
 
@@ -77,20 +78,18 @@
 | DELETE | `/inbox/:id` | 删除 |
 | POST | `/inbox/:id/promote` | 升级为任务、课题或议题 `{ type, title?, ... }` |
 
-## 提醒、动态、回顾、日历
+## 提醒、动态、日历
 
 | 方法 | 路径 | 作用 |
 | --- | --- | --- |
 | GET | `/checks?today=` | 健康检查：按严重程度排好序的提醒，以及各级数量。`today` 默认取服务器日期，前端会传本机日期 |
 | GET | `/activity?projectId=&themeId=&before=&limit=` | 活动记录，附中文说明，按时间倒序；用上一页最后一条的 id 作 `before` 翻页 |
-| GET | `/reviews?kind=&before=&limit=` | 复盘时间线：每个周期的最新一版，附保存次数；`kind` 为 `week` 或 `day` |
 | GET | `/calendar.ics` | 未完成的里程碑和未结束课题的截止日期，ICS 格式，可下载或在日历应用里订阅 |
 
 健康检查规则（阈值在 `packages/core/src/rules/health.ts` 的 `HEALTH_THRESHOLDS`）：
 
 - **里程碑有风险**：7 天内到期且关联任务完成不到 50%；已逾期的一律提醒（紧急）。只看进行中的课题。
 - **课题停滞**：进行中的课题超过 14 天没有任何更新。
-- **周复盘**：上周有计划或任务却没复盘；本周从周五起也提醒一次。
 - **遗留任务**：已完成或放弃的课题、已结束的议题下还有未完成的任务。
 - **议题缺少课题**：进行中的议题下没有进行中的课题（议题建立 7 天后才检查）。
 

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-// 第三阶段：从 Zotero（测试里是假 Zotero）关联文献、添加链接，并在周复盘里看到本周的文献。
+// 第三阶段：从 Zotero（测试里是假 Zotero）关联文献、添加链接，并在本周页看到本周的文献。
 
 test.describe.configure({ mode: 'serial' });
 
@@ -65,12 +65,8 @@ test('添加和移除链接', async ({ page }) => {
   await expect(link).toHaveCount(0);
 });
 
-test('本周关联的文献出现在周复盘里', async ({ page }) => {
+test('本周关联的文献出现在本周页', async ({ page }) => {
   await page.goto('/week');
-  const literature = page.getByTestId('week-literature');
+  const literature = page.getByTestId('week-progress').getByTestId('week-literature');
   await expect(literature).toContainText('Oke (1982) The energetic basis of the urban heat island');
-
-  await page.getByTestId('week-review').getByRole('button', { name: '保存周复盘' }).click();
-  await page.getByRole('link', { name: '回顾' }).click();
-  await expect(page.locator('[data-kind="week"]').first()).toContainText('本周关联的文献');
 });

@@ -124,7 +124,6 @@ describe('完整流程：议题 → 课题 → 任务 → 本周 → 今天 → 
     // 完成
     const done = await call<TaskViewDto>('PATCH', `/tasks/${task.data.id}`, { status: 'done' });
     expect(done.data.doneAt).not.toBeNull();
-    await call('PUT', '/days/2026-09-28/review', { done: '写完了', blockers: '', tomorrow: '' });
 
     const detail = await call<ProjectDetailDto>('GET', `/projects/${project.data.id}`);
     expect(detail.data.progress).toEqual({ done: 1, total: 1, percent: 100 });
@@ -161,7 +160,32 @@ describe('完整流程：议题 → 课题 → 任务 → 本周 → 今天 → 
   });
 });
 
-describe('健康检查、活动记录、复盘时间线、日历', () => {
+describe('议题倒计时', () => {
+  it('新建时设定，修改、取消；GET /api/countdowns 按截止时刻排序', async () => {
+    const a = await call<{ id: number; countdownAt: string | null }>('POST', '/themes', {
+      title: '博士论文',
+      countdownAt: '2027-06-30T18:00:00+08:00',
+    });
+    expect(a.status).toBe(201);
+    expect(a.data.countdownAt).toBe('2027-06-30T10:00:00.000Z');
+    const b = await call<{ id: number }>('POST', '/themes', { title: '基金申请' });
+    await call('PATCH', `/themes/${b.data.id}`, { countdownAt: '2026-12-01T09:30:15Z' });
+
+    const list = await call<{ themeId: number; title: string; at: string }[]>('GET', '/countdowns');
+    expect(list.data).toEqual([
+      { themeId: b.data.id, title: '基金申请', status: 'active', at: '2026-12-01T09:30:15.000Z' },
+      { themeId: a.data.id, title: '博士论文', status: 'active', at: '2027-06-30T10:00:00.000Z' },
+    ]);
+
+    await call('PATCH', `/themes/${a.data.id}`, { countdownAt: null });
+    expect((await call<unknown[]>('GET', '/countdowns')).data).toHaveLength(1);
+
+    const bad = await call<{ error: string }>('PATCH', `/themes/${a.data.id}`, { countdownAt: '明年' });
+    expect(bad.status).toBe(400);
+  });
+});
+
+describe('健康检查、活动记录、日历', () => {
   it('GET /api/checks 默认用注入的"今天"，也可以指定日期', async () => {
     const project = await call<{ id: number }>('POST', '/projects', { title: '论文' });
     await call('POST', `/projects/${project.data.id}/milestones`, { title: '初稿', dueDate: '2026-09-30' });
@@ -200,15 +224,10 @@ describe('健康检查、活动记录、复盘时间线、日历', () => {
     expect(typeof feed.data[0]?.at).toBe('string');
   });
 
-  it('GET /api/reviews 返回复盘时间线', async () => {
-    await call('PUT', '/weeks/2026-W40/review', { wins: ['a'], blockers: [], carryOver: [], reflection: '' });
-    await call('PUT', '/weeks/2026-W40/review', { wins: ['b'], blockers: [], carryOver: [], reflection: '' });
-    const list = await call<{ periodKey: string; versions: number; content: { wins: string[] } }[]>(
-      'GET',
-      '/reviews?kind=week',
-    );
-    expect(list.data).toMatchObject([{ periodKey: '2026-W40', versions: 2, content: { wins: ['b'] } }]);
-    expect((await call('GET', '/reviews?kind=month')).status).toBe(400);
+  it('复盘接口已经移除', async () => {
+    expect((await call('GET', '/reviews')).status).toBe(404);
+    expect((await call('PUT', '/days/2026-09-28/review', { done: '' })).status).toBe(404);
+    expect((await call('PUT', '/weeks/2026-W40/review', { wins: [] })).status).toBe(404);
   });
 
   it('GET /api/calendar.ics 返回日历文件', async () => {

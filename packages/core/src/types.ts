@@ -1,18 +1,7 @@
 // 服务层返回的"视图"类型。只依赖 schema.ts 的类型，不引入数据库连接，
 // 因此前端也可以通过 contracts.ts 安全地引用（经 Wire<> 转成 JSON 形态）。
 
-import type {
-  ActivityLogEntry,
-  DailyReview,
-  InboxItem,
-  Milestone,
-  Project,
-  Resource,
-  Review,
-  Task,
-  Theme,
-  WeeklyReview,
-} from './schema.ts';
+import type { ActivityLogEntry, InboxItem, Milestone, Project, Resource, Task, Theme } from './schema.ts';
 import type { BackupReason } from './enums.ts';
 import type { HealthIssue, HealthSeverity } from './rules/health.ts';
 
@@ -24,9 +13,6 @@ export type HealthReport = {
 
 /** 资源附带所属对象的标题（对象已删除时为 null）。 */
 export type ResourceView = Resource & { ownerTitle: string | null };
-
-/** 复盘时间线里的一项：某个周期的最新一版复盘。 */
-export type ReviewEntry = Review & { versions: number };
 
 /** 活动记录附带一句中文说明。 */
 export type ActivityView = ActivityLogEntry & { summary: string };
@@ -85,8 +71,6 @@ export type WeekView = {
   nextWeek: string;
   plan: {
     focus: string[];
-    review: WeeklyReview | null;
-    reviewedAt: Date | null;
   };
   /** 排在本周的全部任务。 */
   tasks: TaskView[];
@@ -107,9 +91,6 @@ export type DayView = {
   nextDate: string;
   plan: {
     topTaskIds: number[];
-    journal: string | null;
-    review: DailyReview | null;
-    reviewedAt: Date | null;
   };
   /** 当天最重要的事，按设定顺序。 */
   topTasks: TaskView[];
@@ -169,20 +150,6 @@ export type DayPlanDraft = {
   doneToday: TaskView[];
 };
 
-export type WeekReviewDraft = {
-  weekKey: string;
-  start: string;
-  end: string;
-  focus: string[];
-  stats: { done: number; total: number };
-  milestonesCompleted: string[];
-  literature: string[];
-  /** 已经保存过的复盘（没有则为 null）。 */
-  existingReview: WeeklyReview | null;
-  /** 按规则整理的复盘要点，可以直接保存，也可以润色后再保存。 */
-  suggested: WeeklyReview;
-};
-
 export type BackupInfo = {
   file: string;
   path: string;
@@ -204,4 +171,13 @@ export type BackupStatus = {
   /** 距最近一次备份超过两个间隔（或从未备份且自动备份关闭）时为 true。 */
   overdue: boolean;
   items: BackupInfo[];
+};
+
+/** 议题倒计时：截止时刻由用户设定，剩余时间由前端按秒计算。 */
+export type Countdown = {
+  themeId: number;
+  title: string;
+  status: Theme['status'];
+  /** 截止时刻。 */
+  at: Date;
 };

@@ -18,7 +18,6 @@ daily_plans.top_task_ids                         当天最重要的 3 件事
 inbox_items   随手记，可升级为议题、课题或任务
 resources     资源链接，挂在议题、课题或任务上
 activity_log  所有写操作的记录（附课题、议题上下文，不设外键）
-reviews       复盘快照：每保存一次复盘追加一条，从不修改
 ```
 
 ## 各表字段
@@ -34,6 +33,7 @@ reviews       复盘快照：每保存一次复盘追加一条，从不修改
 | status | `active` 进行中 / `dormant` 休眠 / `closed` 结束 |
 | started_at | 开始日期 |
 | review_cadence_days | 多少天回顾一次这个议题，默认 30 |
+| countdown_at | 倒计时的截止时刻（毫秒时间戳，精确到秒），可为空。今日页、本周页和桌面小窗按秒显示剩余时间 |
 
 ### projects 课题
 
@@ -69,11 +69,11 @@ reviews       复盘快照：每保存一次复盘追加一条，从不修改
 
 ### weekly_plans 周计划
 
-每周一条，`week_key` 唯一。`focus` 是本周重点（3 到 5 条）。`review` 是周末复盘，包含收获、阻碍、带入下周的事项和反思。
+每周一条，`week_key` 唯一。`focus` 是本周重点（3 到 5 条）。
 
 ### daily_plans 日计划
 
-每天一条，`date` 唯一。`top_task_ids` 是当天最重要的任务，`journal` 是工作日志，`review` 是晚间复盘。
+每天一条，`date` 唯一。`top_task_ids` 是当天最重要的任务（最多 3 件）。
 
 ### inbox_items 收件箱
 
@@ -100,24 +100,16 @@ reviews       复盘快照：每保存一次复盘追加一条，从不修改
 | 字段 | 说明 |
 | --- | --- |
 | entity_type, entity_id | 被修改的对象：`theme` / `project` / `milestone` / `task` / `weekly_plan` / `daily_plan` / `inbox_item` |
-| action | `created` / `updated` / `deleted` / `completed` / `reopened` / `status_changed` / `scheduled` / `unscheduled` / `moved` / `planned` / `journaled` / `reviewed` / `promoted` |
+| action | `created` / `updated` / `deleted` / `completed` / `reopened` / `status_changed` / `scheduled` / `unscheduled` / `moved` / `planned` / `promoted` / `linked` / `unlinked`。旧版本还会有 `journaled`、`reviewed`（工作日志和复盘，现已移除），仍能正常显示 |
 | project_id, theme_id | 写入时所属的课题和议题。不设外键，对象删除后记录仍在 |
 | payload | `{ title, changes: { 字段: [旧值, 新值] }, ... }`。title 是写入时的标题快照 |
 | at | 发生时刻 |
 
 中文说明（例如"完成任务"跑回归""）由 `services/activity.ts` 的 `describeActivity` 在读取时生成，不存库。
 
-### reviews 复盘快照
+### 已移除：工作日志与复盘
 
-每保存一次周复盘或日复盘就追加一条，从不修改或删除。`weekly_plans` / `daily_plans` 里的 `review` 字段只保存最新一版，方便继续编辑。
-
-| 字段 | 说明 |
-| --- | --- |
-| kind | `week` 或 `day` |
-| period_key | 周复盘为 `2026-W40`，日复盘为 `2026-09-28` |
-| content | 复盘内容，与计划表里的 review 结构相同 |
-| stats | 保存时自动统计。周：本周重点、完成数、总数、完成与未完成的任务标题、本周关联的文献。日：最重要的事及是否完成、完成数、总数 |
-| created_at | 保存时刻 |
+0.3.0 起去掉了工作日志、日复盘和周复盘：删除了 `reviews` 表，以及 `daily_plans.journal / review / reviewed_at`、`weekly_plans.review / reviewed_at` 列（迁移 `0003`）。升级时会先自动备份，需要找回旧内容时可以打开"升级前备份"查看。
 
 ## 存储约定
 

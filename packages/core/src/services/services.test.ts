@@ -6,17 +6,11 @@ import { createInboxItem, listInbox, promoteInboxItem } from './inbox.ts';
 import { getThemeMap } from './map.ts';
 import { createMilestone, updateMilestone } from './milestones.ts';
 import { listOwners } from './owners.ts';
-import {
-  getDayView,
-  getWeekView,
-  saveDayPlan,
-  saveDayReview,
-  saveWeekPlan,
-  saveWeekReview,
-} from './plans.ts';
+import { getDayView, getWeekView, saveDayPlan, saveWeekPlan } from './plans.ts';
 import { createProject, deleteProject, getProjectDetail, updateProject } from './projects.ts';
 import { createTask, deleteTask, getTaskView, listTasks, updateTask } from './tasks.ts';
-import { createTheme, deleteTheme, updateTheme } from './themes.ts';
+import { listActivity } from './activity.ts';
+import { createTheme, deleteTheme, listCountdowns, updateTheme } from './themes.ts';
 
 let db: Db;
 
@@ -183,6 +177,33 @@ describe('议题与课题', () => {
     expect(map.unassignedProjects.map((p) => p.id)).toEqual([loose.id]);
   });
 
+  it('议题倒计时：可以设定、修改和取消，列表按截止时刻排序、不含已结束的议题', () => {
+    const a = createTheme(db, { title: '博士论文', countdownAt: new Date('2027-06-30T10:00:00Z') });
+    const b = createTheme(db, { title: '基金申请' });
+    const c = createTheme(db, {
+      title: '已结束',
+      status: 'closed',
+      countdownAt: new Date('2026-01-01T00:00:00Z'),
+    });
+    expect(a.countdownAt).toEqual(new Date('2027-06-30T10:00:00Z'));
+    expect(b.countdownAt).toBeNull();
+
+    updateTheme(db, b.id, { countdownAt: new Date('2026-12-01T09:30:15Z') });
+    expect(listCountdowns(db)).toEqual([
+      { themeId: b.id, title: '基金申请', status: 'active', at: new Date('2026-12-01T09:30:15Z') },
+      { themeId: a.id, title: '博士论文', status: 'active', at: new Date('2027-06-30T10:00:00Z') },
+    ]);
+
+    // 同一时刻再次保存不算修改
+    const before = listActivity(db).length;
+    updateTheme(db, a.id, { countdownAt: new Date('2027-06-30T10:00:00Z') });
+    expect(listActivity(db)).toHaveLength(before);
+
+    updateTheme(db, a.id, { countdownAt: null });
+    expect(listCountdowns(db).map((x) => x.themeId)).toEqual([b.id]);
+    expect(c.id).toBeGreaterThan(0);
+  });
+
   it('删除议题后课题保留、议题级任务删除', () => {
     const { theme, project } = setup();
     const t = createTask(db, { title: '议题任务', themeId: theme.id });
@@ -238,22 +259,13 @@ describe('周计划', () => {
     expect(w.backlog.map((t) => t.id)).toEqual([loose.id]);
     expect(w.milestonesDue.map((m) => m.id)).toEqual([milestone.id]);
     expect(w.milestonesDue[0]?.projectTitle).toBe('课题 A1');
-    expect(w.plan).toEqual({ focus: [], review: null, reviewedAt: null });
+    expect(w.plan).toEqual({ focus: [] });
   });
 
-  it('保存重点与复盘，去掉空行，重复保存覆盖', () => {
+  it('保存重点，去掉空行，重复保存覆盖', () => {
     saveWeekPlan(db, '2026-W40', { focus: ['  推进分析 ', '', '读综述'] });
     const w = saveWeekPlan(db, '2026-W40', { focus: ['推进分析', '读综述', '写提纲'] });
     expect(w.plan.focus).toEqual(['推进分析', '读综述', '写提纲']);
-    const reviewed = saveWeekReview(db, '2026-W40', {
-      wins: ['完成分析'],
-      blockers: [],
-      carryOver: [],
-      reflection: '',
-    });
-    expect(reviewed.plan.review?.wins).toEqual(['完成分析']);
-    expect(reviewed.plan.reviewedAt).toBeInstanceOf(Date);
-    expect(reviewed.plan.focus).toHaveLength(3);
   });
 });
 
@@ -268,14 +280,6 @@ describe('日计划', () => {
     expect(d.topTasks.map((t) => t.id)).toEqual([b.id, a.id]);
     expect(d.scheduled.map((t) => t.id)).toEqual([c.id]);
     expect(getTaskView(db, b.id)).toMatchObject({ scheduledDate: '2026-09-28', weekKey: '2026-W40' });
-  });
-
-  it('只改日志时不影响最重要的事', () => {
-    const { project } = setup();
-    const a = createTask(db, { title: 'a', projectId: project.id });
-    saveDayPlan(db, '2026-09-28', { topTaskIds: [a.id] });
-    const d = saveDayPlan(db, '2026-09-28', { journal: '今天状态不错' });
-    expect(d.plan).toMatchObject({ topTaskIds: [a.id], journal: '今天状态不错' });
   });
 
   it('任务移出当天后自动从最重要的事里消失', () => {
@@ -306,12 +310,6 @@ describe('日计划', () => {
     expect(d).toMatchObject({ weekKey: '2026-W40', prevDate: '2026-09-27', nextDate: '2026-09-29' });
     expect(d.carryOver.map((t) => t.id)).toEqual([old.id]);
     expect(d.weekPool.map((t) => t.id)).toEqual([pool.id]);
-  });
-
-  it('保存晚间复盘', () => {
-    const d = saveDayReview(db, '2026-09-28', { done: '跑完回归', blockers: '', tomorrow: '写结果' });
-    expect(d.plan.review).toEqual({ done: '跑完回归', blockers: '', tomorrow: '写结果' });
-    expect(d.plan.reviewedAt).toBeInstanceOf(Date);
   });
 });
 
