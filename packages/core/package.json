@@ -9,7 +9,8 @@
     "./enums": "./src/enums.ts",
     "./week": "./src/week.ts",
     "./health-rules": "./src/rules/health.ts",
-    "./testing": "./src/testing/fake-zotero.ts"
+    "./testing": "./src/testing/fake-zotero.ts",
+    "./config": "./src/config.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

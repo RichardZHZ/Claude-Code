@@ -6,7 +6,7 @@
 研究议题 → 课题 → 里程碑 → 任务 ← 周计划 ← 日计划
 ```
 
-每天做的事都能追溯到它服务的长期目标。数据只存在你电脑上的一个 SQLite 文件里。
+每天做的事都能追溯到它服务的长期目标。数据只存在你电脑上的一个 SQLite 文件里。可以作为桌面应用使用，也可以在浏览器里打开。
 
 开发计划见 [docs/DEV_PLAN.md](docs/DEV_PLAN.md)，数据模型见 [docs/DATA_MODEL.md](docs/DATA_MODEL.md)，接口见 [docs/API.md](docs/API.md)，Claude 集成见 [docs/MCP.md](docs/MCP.md)，部署与备份见 [docs/DEPLOY.md](docs/DEPLOY.md)。
 
@@ -17,10 +17,13 @@
 - [x] 第二阶段：提醒（健康检查）、复盘历史、课题动态、日历导出
 - [x] 第三阶段：在 Claude Code 里使用的小助理（MCP）、Zotero 文献关联
 - [x] 第四阶段：一键启动、Docker、自动备份与恢复
+- [x] macOS 桌面应用：双击打开，不经过浏览器
 
 ## 快速开始
 
-需要 Node.js 22.12 或更高版本，以及 pnpm 10。
+**只想用**：下载 macOS 桌面应用，双击打开，不需要浏览器，也不需要装 Node.js。安装步骤见 [docs/DEPLOY.md](docs/DEPLOY.md#桌面应用macos)。
+
+**从源码运行**：需要 Node.js 22.12 或更高版本，以及 pnpm 10。
 
 ```bash
 corepack enable          # 如果还没有 pnpm
@@ -37,7 +40,7 @@ pnpm dev                 # 同时启动 API 和前端
 pnpm start               # 构建网页并启动，打开 http://localhost:8787
 ```
 
-也可以用 Docker：`docker compose up -d --build`。开机自启动、Docker 的细节见 [docs/DEPLOY.md](docs/DEPLOY.md)。
+也可以用 `pnpm desktop` 在桌面窗口里打开，或者用 Docker：`docker compose up -d --build`。细节见 [docs/DEPLOY.md](docs/DEPLOY.md)。
 
 ## 怎么用
 
@@ -60,15 +63,17 @@ Zotero 需要 7.0 以上，并在"设置 → 高级 → 其他"里勾选"允许�
 
 ## 数据与备份
 
-数据库默认在仓库根目录的 `data/researchpilot.db`，可以用环境变量 `DB_PATH` 指定别的位置。
+数据只存在你电脑上的一个数据目录里（macOS 是 `~/Library/Application Support/ResearchPilot/`）。桌面应用、`pnpm start` 和 Claude 读写的是同一份数据。可以用环境变量 `DB_PATH` 指定别的位置。
 
-程序运行时每天自动备份一次到 `data/backups/`，保留最新 30 份；升级数据库结构前、恢复备份前也会各留一份。网页左下角显示上次备份的时间，可以点"立即备份"。恢复时先停掉服务，再运行 `pnpm db:restore <备份文件名>`。详见 [docs/DEPLOY.md](docs/DEPLOY.md)。
+程序运行时每天自动备份一次到数据目录的 `backups/`，保留最新 30 份；升级数据库结构前、恢复备份前也会各留一份。网页左下角显示上次备份的时间，可以点"立即备份"。恢复时先停掉服务，再运行 `pnpm db:restore <备份文件名>`。详见 [docs/DEPLOY.md](docs/DEPLOY.md)。
 
 ## 常用命令
 
 | 命令 | 作用 |
 | --- | --- |
 | `pnpm start` | 构建网页并启动，网页和接口都在端口 8787 |
+| `pnpm desktop` | 在桌面窗口里打开（开发版，不打包） |
+| `pnpm desktop:package --mac --arch arm64,x64` | 打包 macOS 安装包 |
 | `pnpm dev` | 开发模式：启动 API（端口 8787）和前端（端口 5173），改代码自动刷新 |
 | `pnpm check` | 依次运行代码检查、格式检查、类型检查和测试 |
 | `pnpm test` | 运行全部单元测试 |
@@ -87,12 +92,13 @@ apps/
   api/        Hono 后端，所有接口挂在 /api 下
   web/        React 前端（Vite + Tailwind + shadcn/ui）
   mcp/        MCP 服务器，供 Claude Code 调用
+  desktop/    Electron 桌面应用，内置上面的服务和页面
 packages/
   core/       表结构、迁移、业务逻辑（services/）、前后端共享的校验与类型（contracts.ts）
 e2e/          Playwright 端到端测试
 docs/         开发计划、数据模型、接口说明、部署与备份
 docker/       Docker 启动脚本
-data/         本地数据库和备份（不入库）
+data/         Docker 默认的数据目录（不入库）
 ```
 
 第一次运行 `pnpm e2e` 前需要装一次浏览器：`pnpm exec playwright install chromium`。

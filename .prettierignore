@@ -1,6 +1,8 @@
 node_modules
 dist
 .turbo
+apps/desktop/.stage
+apps/desktop/release
 data
 pnpm-lock.yaml
 packages/core/drizzle

@@ -1,0 +1,74 @@
+# 在 GitHub 的 macOS 机器上打包桌面应用（Apple 芯片 arm64、Intel x64 两个 .dmg）。
+# - 拉取请求：打包并试启动，安装包作为本次运行的附件（Artifacts）可下载。
+# - 推送 v 开头的标签（如 v0.1.0）：另外发布到 GitHub Releases。
+name: Desktop app
+
+on:
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/desktop.yml'
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Package
+        run: pnpm desktop:package --mac --arch arm64,x64
+        env:
+          # 没有 Apple 开发者证书：不去钥匙串里找，使用 ad-hoc 签名。
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          # electron-builder 默认不给拉取请求签名。ad-hoc 签名不用任何密钥，放开它，
+          # 否则拉取请求打出的安装包下载后会被 macOS 判定为"已损坏"。
+          CSC_FOR_PULL_REQUEST: 'true'
+
+      - name: Verify signatures
+        run: |
+          for app in apps/desktop/release/mac*/*.app; do
+            codesign --verify --deep --strict --verbose=2 "$app"
+            codesign -dv "$app" 2>&1 | grep -E 'Signature=|Identifier='
+          done
+
+      - name: Smoke test (start the arm64 app and wait for its server)
+        run: |
+          app=$(ls -d apps/desktop/release/mac-arm64/*.app)
+          exe="$app/Contents/MacOS/$(basename "$app" .app)"
+          export DB_PATH="$RUNNER_TEMP/rp/researchpilot.db"
+          "$exe" &
+          pid=$!
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8787/api/health; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8787/today | grep -q '<title>'
+          kill $pid
+          wait $pid || true
+          cat "$RUNNER_TEMP/rp/logs/desktop.log"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ResearchPilot-mac
+          path: apps/desktop/release/*.dmg
+          if-no-files-found: error
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/desktop/release/*.dmg

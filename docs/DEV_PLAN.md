@@ -202,6 +202,14 @@ DailyPlan  日计划 ── 从本周任务中选 Top 3，当日日志，晚间�
 - Docker 构建阶段用完整的 `node:22-bookworm` 镜像（自带编译工具），运行阶段用同版本的精简镜像，不需要 apt 安装任何东西。容器以 `data/` 目录所有者的身份运行，宿主机上的文件归属不变。
 - 从容器里访问宿主机的 Zotero 受 Zotero 只监听本机的限制，Linux 上通常不可用；需要文献功能时推荐 `pnpm start`。
 
+### 补充：macOS 桌面应用 ✅
+用户希望像普通软件一样打开，不经过浏览器，并且下载安装包即可使用。
+- 选 Electron 而不是计划里的 Tauri：服务端本来就是 Node，Electron 自带 Node，可以原样运行服务和 MCP 服务器；Tauri 还要另外打包一个 Node 运行时。
+- 主进程以子进程运行打包好的服务，窗口加载 `127.0.0.1:8787`（被占用时换空闲端口）。外部链接交给系统浏览器和 Zotero。
+- 默认数据目录从仓库的 `data/` 改为系统的用户数据目录，桌面应用、`pnpm start` 和 MCP 共用一份数据。
+- MCP 服务器也打进应用，菜单里一键复制 `claude mcp add` 命令，不装 Node.js 也能在 Claude Code 里使用。
+- GitHub Actions 在 macOS 上打包 arm64、x64 两个 .dmg 并试启动；推送 `v*` 标签时发布到 Releases。没有 Apple 开发者证书，使用 ad-hoc 签名，第一次打开需手动放行。
+
 ---
 
 ## 验证方式

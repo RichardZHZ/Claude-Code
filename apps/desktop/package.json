@@ -1,0 +1,26 @@
+{
+  "name": "@researchpilot/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "科研小助理桌面应用",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "bundle": "node scripts/bundle.mjs",
+    "start": "pnpm --filter @researchpilot/web build && node scripts/bundle.mjs && node scripts/ensure-electron.mjs && electron .",
+    "package": "node scripts/package.mjs",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3"
+  },
+  "devDependencies": {
+    "@researchpilot/api": "workspace:*",
+    "@researchpilot/core": "workspace:*",
+    "@researchpilot/mcp": "workspace:*",
+    "@types/node": "^22.19.0",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "typescript": "~6.0.3"
+  }
+}

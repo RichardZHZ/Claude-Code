@@ -11,6 +11,8 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "start": "pnpm build && pnpm --filter @researchpilot/api start",
+    "desktop": "pnpm --filter @researchpilot/desktop start",
+    "desktop:package": "pnpm --filter @researchpilot/desktop package",
     "typecheck": "turbo run typecheck && tsc -p tsconfig.e2e.json",
     "test": "turbo run test",
     "e2e": "playwright test",

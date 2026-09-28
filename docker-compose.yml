@@ -1,5 +1,5 @@
 # 用法：docker compose up -d --build，然后打开 http://localhost:8787
-# 数据库和备份保存在本目录的 data/ 下（与不用 Docker 时的默认位置相同）。
+# 数据库和备份默认保存在本目录的 data/ 下；用 RESEARCHPILOT_DATA 可以换成别的目录，见 docs/DEPLOY.md。
 services:
   researchpilot:
     build: .
@@ -10,7 +10,7 @@ services:
       # 只对本机开放。
       - '127.0.0.1:8787:8787'
     volumes:
-      - ./data:/data
+      - ${RESEARCHPILOT_DATA:-./data}:/data
     environment:
       TZ: ${TZ:-Asia/Shanghai}
       # 容器里访问宿主机上的 Zotero。Zotero 默认只接受来自本机的连接，见 docs/DEPLOY.md。

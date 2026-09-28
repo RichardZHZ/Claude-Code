@@ -4,9 +4,11 @@
 
 ## 启用
 
-在 Claude Code 里打开这个仓库。根目录的 `.mcp.json` 已经登记了服务器 `researchpilot`，第一次使用时 Claude Code 会请你批准。批准后输入 `/mcp` 可以看到它的状态。
+用桌面应用的话，点菜单"帮助 → 在 Claude Code 中使用…"，把复制的命令粘贴到终端运行一次即可，不需要仓库，也不需要装 Node.js。
 
-服务器和网页用的是同一个数据库（默认 `data/researchpilot.db`），两边可以同时开着。
+用源码的话，在 Claude Code 里打开这个仓库。根目录的 `.mcp.json` 已经登记了服务器 `researchpilot`，第一次使用时 Claude Code 会请你批准。批准后输入 `/mcp` 可以看到它的状态。
+
+服务器和桌面应用、网页用的是同一个数据库（macOS 默认在 `~/Library/Application Support/ResearchPilot/`），可以同时开着。
 
 想在别的目录也能用，可以把它登记为你的个人服务器（把路径换成你电脑上仓库的实际位置）：
 
@@ -18,7 +20,7 @@ claude mcp add --scope user researchpilot -- node /path/to/Claude-Code/apps/mcp/
 
 | 变量 | 作用 | 默认 |
 | --- | --- | --- |
-| `DB_PATH` | 数据库文件位置 | 仓库里的 `data/researchpilot.db` |
+| `DB_PATH` | 数据库文件位置 | 用户数据目录里的 `researchpilot.db`，见 `docs/DEPLOY.md` |
 | `ZOTERO_URL` | Zotero 本地 API 地址 | `http://127.0.0.1:23119` |
 | `BACKUP_DIR`、`BACKUP_KEEP`、`BACKUP_INTERVAL_HOURS`、`AUTO_BACKUP` | 自动备份设置，见 `docs/DEPLOY.md` | 每 24 小时一次，保留 30 份 |
 
