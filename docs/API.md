@@ -2,7 +2,9 @@
 
 所有接口挂在 `/api` 下，收发 JSON。输入校验规则和返回类型定义在 `packages/core/src/contracts.ts`。
 
-出错时返回 `{ "error": "中文说明" }`：参数不合法或违反业务规则为 400，资源不存在为 404。
+出错时返回 `{ "error": "中文说明" }`：参数不合法或违反业务规则为 400，资源不存在为 404，依赖的外部服务（Zotero）不可用为 503。
+
+用 `pnpm start` 或 Docker 运行时，同一个端口还托管网页：`/api` 以外的页面路径都返回网页入口，由前端路由处理。
 
 ## 概览
 
@@ -104,3 +106,12 @@
 | GET | `/zotero/search?q=&limit=` | 在本机 Zotero 里按标题、作者、年份搜索（后端代理，浏览器不能直接访问 Zotero） |
 
 Zotero 没运行或没开启本地 API 时，`/zotero/*` 和 `/resources/zotero` 返回 503，`error` 里写明开启方法。同一对象重复关联同一条目返回 400。周视图 `GET /weeks/:weekKey` 的 `literature` 字段是本周新关联的文献。
+
+## 备份
+
+| 方法 | 路径 | 作用 |
+| --- | --- | --- |
+| GET | `/backups` | 备份设置、最近一次备份、是否太久没备份（`overdue`）、全部备份列表（最新在前） |
+| POST | `/backups` | 立即备份一次，并按保留份数清理旧备份，返回这份备份的信息 |
+
+超过两个备份间隔没有备份时 `overdue` 为 `true`。恢复需要先停掉服务，所以没有接口，只能用 `pnpm db:restore`，见 `docs/DEPLOY.md`。

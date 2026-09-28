@@ -37,6 +37,7 @@ export const REVIEW_KINDS = ['week', 'day'] as const;
 export const RESOURCE_OWNER_TYPES = ['theme', 'project', 'task'] as const;
 export const RESOURCE_KINDS = ['url', 'zotero', 'file'] as const;
 export const PROMOTE_TYPES = ['theme', 'project', 'task'] as const;
+export const BACKUP_REASONS = ['scheduled', 'manual', 'before-migration', 'before-restore'] as const;
 
 export type ThemeStatus = (typeof THEME_STATUSES)[number];
 export type ProjectKind = (typeof PROJECT_KINDS)[number];
@@ -48,6 +49,14 @@ export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 export type ReviewKind = (typeof REVIEW_KINDS)[number];
 export type ResourceOwnerType = (typeof RESOURCE_OWNER_TYPES)[number];
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
+export type BackupReason = (typeof BACKUP_REASONS)[number];
+
+export const BACKUP_REASON_LABELS: Record<BackupReason, string> = {
+  scheduled: '自动备份',
+  manual: '手动备份',
+  'before-migration': '升级前备份',
+  'before-restore': '恢复前备份',
+};
 
 export const RESOURCE_KIND_LABELS: Record<ResourceKind, string> = {
   url: '链接',

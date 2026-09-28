@@ -20,6 +20,9 @@ claude mcp add --scope user researchpilot -- node /path/to/Claude-Code/apps/mcp/
 | --- | --- | --- |
 | `DB_PATH` | 数据库文件位置 | 仓库里的 `data/researchpilot.db` |
 | `ZOTERO_URL` | Zotero 本地 API 地址 | `http://127.0.0.1:23119` |
+| `BACKUP_DIR`、`BACKUP_KEEP`、`BACKUP_INTERVAL_HOURS`、`AUTO_BACKUP` | 自动备份设置，见 `docs/DEPLOY.md` | 每 24 小时一次，保留 30 份 |
+
+MCP 服务器运行时也会按时自动备份，只用 Claude、不开网页也不会漏掉备份。
 
 ## 常用说法
 

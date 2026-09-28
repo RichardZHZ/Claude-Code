@@ -1,12 +1,21 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Outlet } from '@tanstack/react-router';
-import { Bell, CalendarDays, CalendarRange, History, Inbox, Network, Send } from 'lucide-react';
+import {
+  Bell,
+  CalendarDays,
+  CalendarRange,
+  DatabaseBackup,
+  History,
+  Inbox,
+  Network,
+  Send,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
-import { todayString } from '@/lib/format';
-import { useAction, useChecks, useHealth, useInbox } from '@/lib/queries';
+import { relativeTime, todayString } from '@/lib/format';
+import { useAction, useBackupNow, useBackups, useChecks, useHealth, useInbox } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 const NAV = [
@@ -69,8 +78,9 @@ export function AppShell() {
         <div className="px-4 pb-4 md:px-5">
           <QuickCapture />
         </div>
-        <div className="mt-auto hidden px-5 pb-5 md:block">
+        <div className="mt-auto hidden space-y-2 px-5 pb-5 md:block">
           <HealthDot showLabel />
+          <BackupStatus today={today} />
         </div>
       </aside>
       <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-8">
@@ -128,6 +138,38 @@ function HealthDot({ showLabel, className }: { showLabel?: boolean; className?: 
         )}
       />
       {showLabel ? label : <span className="sr-only">{label}</span>}
+    </div>
+  );
+}
+
+/** 最近一次备份的时间和"立即备份"按钮。太久没备份时标红。 */
+function BackupStatus({ today }: { today: string }) {
+  const backups = useBackups();
+  const backupNow = useBackupNow();
+  if (!backups.isSuccess) return null;
+  const { latest, overdue, dir } = backups.data;
+  const label = latest ? `上次备份：${relativeTime(latest.createdAt, today)}` : '还没有备份';
+  return (
+    <div
+      data-testid="backup-status"
+      className={cn(
+        'flex items-center gap-2 text-xs',
+        overdue ? 'text-destructive' : 'text-muted-foreground',
+      )}
+      title={`备份目录：${dir}`}
+    >
+      <DatabaseBackup className="size-3.5 shrink-0" />
+      <div className="min-w-0">
+        <div>{label}</div>
+        <button
+          type="button"
+          className="underline-offset-2 hover:text-foreground hover:underline disabled:opacity-50"
+          disabled={backupNow.isPending}
+          onClick={() => backupNow.mutate()}
+        >
+          {backupNow.isPending ? '正在备份…' : '立即备份'}
+        </button>
+      </div>
     </div>
   );
 }

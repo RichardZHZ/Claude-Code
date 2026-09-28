@@ -8,7 +8,7 @@
 
 每天做的事都能追溯到它服务的长期目标。数据只存在你电脑上的一个 SQLite 文件里。
 
-开发计划见 [docs/DEV_PLAN.md](docs/DEV_PLAN.md)，数据模型见 [docs/DATA_MODEL.md](docs/DATA_MODEL.md)，接口见 [docs/API.md](docs/API.md)，Claude 集成见 [docs/MCP.md](docs/MCP.md)。
+开发计划见 [docs/DEV_PLAN.md](docs/DEV_PLAN.md)，数据模型见 [docs/DATA_MODEL.md](docs/DATA_MODEL.md)，接口见 [docs/API.md](docs/API.md)，Claude 集成见 [docs/MCP.md](docs/MCP.md)，部署与备份见 [docs/DEPLOY.md](docs/DEPLOY.md)。
 
 ## 当前进度
 
@@ -16,7 +16,7 @@
 - [x] 第一阶段：议题地图、课题详情、本周、今日、收件箱五个页面
 - [x] 第二阶段：提醒（健康检查）、复盘历史、课题动态、日历导出
 - [x] 第三阶段：在 Claude Code 里使用的小助理（MCP）、Zotero 文献关联
-- [ ] 第四阶段：打包部署与自动备份
+- [x] 第四阶段：一键启动、Docker、自动备份与恢复
 
 ## 快速开始
 
@@ -30,6 +30,14 @@ pnpm dev                 # 同时启动 API 和前端
 ```
 
 然后打开 <http://localhost:5173>。左下角显示"服务与数据库正常"即表示一切就绪。
+
+日常使用不需要开发服务器，一条命令即可：
+
+```bash
+pnpm start               # 构建网页并启动，打开 http://localhost:8787
+```
+
+也可以用 Docker：`docker compose up -d --build`。开机自启动、Docker 的细节见 [docs/DEPLOY.md](docs/DEPLOY.md)。
 
 ## 怎么用
 
@@ -50,13 +58,18 @@ pnpm dev                 # 同时启动 API 和前端
 
 Zotero 需要 7.0 以上，并在"设置 → 高级 → 其他"里勾选"允许此计算机上的其他应用程序与 Zotero 通信"。
 
-数据库默认在仓库根目录的 `data/researchpilot.db`，可以用环境变量 `DB_PATH` 指定别的位置。备份时复制这个文件即可。
+## 数据与备份
+
+数据库默认在仓库根目录的 `data/researchpilot.db`，可以用环境变量 `DB_PATH` 指定别的位置。
+
+程序运行时每天自动备份一次到 `data/backups/`，保留最新 30 份；升级数据库结构前、恢复备份前也会各留一份。网页左下角显示上次备份的时间，可以点"立即备份"。恢复时先停掉服务，再运行 `pnpm db:restore <备份文件名>`。详见 [docs/DEPLOY.md](docs/DEPLOY.md)。
 
 ## 常用命令
 
 | 命令 | 作用 |
 | --- | --- |
-| `pnpm dev` | 启动 API（端口 8787）和前端（端口 5173） |
+| `pnpm start` | 构建网页并启动，网页和接口都在端口 8787 |
+| `pnpm dev` | 开发模式：启动 API（端口 8787）和前端（端口 5173），改代码自动刷新 |
 | `pnpm check` | 依次运行代码检查、格式检查、类型检查和测试 |
 | `pnpm test` | 运行全部单元测试 |
 | `pnpm e2e` | 在真实浏览器里跑端到端测试（使用临时数据库，不影响你的数据） |
@@ -64,6 +77,8 @@ Zotero 需要 7.0 以上，并在"设置 → 高级 → 其他"里勾选"允许�
 | `pnpm db:generate` | 修改表结构后生成新的迁移文件 |
 | `pnpm db:migrate` | 把数据库升级到最新结构 |
 | `pnpm db:seed` | 数据库为空时写入示例数据 |
+| `pnpm db:backup` | 立即备份；加 `--list` 列出已有备份 |
+| `pnpm db:restore <文件>` | 用备份恢复数据库（先停掉服务） |
 
 ## 目录结构
 
@@ -75,8 +90,9 @@ apps/
 packages/
   core/       表结构、迁移、业务逻辑（services/）、前后端共享的校验与类型（contracts.ts）
 e2e/          Playwright 端到端测试
-docs/         开发计划、数据模型、接口说明
-data/         本地数据库（不入库）
+docs/         开发计划、数据模型、接口说明、部署与备份
+docker/       Docker 启动脚本
+data/         本地数据库和备份（不入库）
 ```
 
 第一次运行 `pnpm e2e` 前需要装一次浏览器：`pnpm exec playwright install chromium`。

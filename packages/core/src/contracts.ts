@@ -278,3 +278,5 @@ export type DraftTaskDto = Wire<V.DraftTask>;
 export type WeekPlanDraftDto = Wire<V.WeekPlanDraft>;
 export type DayPlanDraftDto = Wire<V.DayPlanDraft>;
 export type WeekReviewDraftDto = Wire<V.WeekReviewDraft>;
+export type BackupInfoDto = Wire<V.BackupInfo>;
+export type BackupStatusDto = Wire<V.BackupStatus>;

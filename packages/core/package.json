@@ -16,7 +16,9 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/scripts/migrate.ts",
-    "db:seed": "tsx src/scripts/seed.ts"
+    "db:seed": "tsx src/scripts/seed.ts",
+    "db:backup": "tsx src/scripts/backup.ts",
+    "db:restore": "tsx src/scripts/restore.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

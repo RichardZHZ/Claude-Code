@@ -6,11 +6,14 @@ import {
   DomainError,
   isoWeekKey,
   pingDb,
+  resolveBackupConfig,
   resolveZoteroUrl,
   toDateString,
+  type BackupConfig,
   type Db,
   type ZoteroClient,
 } from '@researchpilot/core';
+import { backupRoutes } from './routes/backups.ts';
 import { inboxRoutes } from './routes/inbox.ts';
 import { insightRoutes } from './routes/insights.ts';
 import { planRoutes } from './routes/plans.ts';
@@ -25,6 +28,8 @@ export type AppOptions = {
   today?: () => string;
   /** Zotero 本地 API 客户端，默认按环境变量 ZOTERO_URL 创建。 */
   zotero?: ZoteroClient;
+  /** 备份设置，默认按环境变量解析。 */
+  backup?: BackupConfig;
   log?: boolean;
 };
 
@@ -33,6 +38,7 @@ export function createApp({
   db,
   today = () => toDateString(new Date()),
   zotero = createZoteroClient({ baseUrl: resolveZoteroUrl() }),
+  backup = resolveBackupConfig(),
   log = false,
 }: AppOptions) {
   const app = new Hono().basePath('/api');
@@ -54,6 +60,7 @@ export function createApp({
   app.route('/', inboxRoutes(db));
   app.route('/', insightRoutes(db, today));
   app.route('/', resourceRoutes(db, zotero));
+  app.route('/', backupRoutes(db, backup));
 
   app.notFound((c) => c.json({ error: '未找到该接口' }, 404));
   app.onError((err, c) => {

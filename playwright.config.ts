@@ -6,7 +6,9 @@ import { defineConfig, devices } from '@playwright/test';
 const API_PORT = 8799;
 const WEB_PORT = 5199;
 const ZOTERO_PORT = 23199;
-const dbPath = join(tmpdir(), `researchpilot-e2e-${Date.now()}.db`);
+const runId = `researchpilot-e2e-${Date.now()}`;
+const dbPath = join(tmpdir(), `${runId}.db`);
+const backupDir = join(tmpdir(), `${runId}-backups`);
 
 export default defineConfig({
   testDir: 'e2e',
@@ -35,9 +37,15 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: 'pnpm --filter @researchpilot/api start',
+      // 开发入口只提供 /api，页面由下面的 Vite 提供。
+      command: 'pnpm --filter @researchpilot/api exec tsx src/index.ts',
       url: `http://127.0.0.1:${API_PORT}/api/health`,
-      env: { DB_PATH: dbPath, PORT: String(API_PORT), ZOTERO_URL: `http://127.0.0.1:${ZOTERO_PORT}` },
+      env: {
+        DB_PATH: dbPath,
+        BACKUP_DIR: backupDir,
+        PORT: String(API_PORT),
+        ZOTERO_URL: `http://127.0.0.1:${ZOTERO_PORT}`,
+      },
       reuseExistingServer: false,
       timeout: 60_000,
     },

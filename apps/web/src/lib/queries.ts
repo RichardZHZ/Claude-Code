@@ -2,6 +2,8 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { toast } from 'sonner';
 import type {
   ActivityDto,
+  BackupInfoDto,
+  BackupStatusDto,
   ResourceDto,
   ResourceOwnerType,
   ZoteroItemDto,
@@ -73,6 +75,19 @@ export const useZoteroSearch = (query: string) =>
     retry: false,
     staleTime: 60_000,
   });
+
+/** 数据库备份状态。 */
+export const useBackups = () =>
+  useQuery({
+    queryKey: ['backups'],
+    queryFn: ({ signal }) => api.get<BackupStatusDto>('/backups', signal),
+    refetchInterval: 10 * 60_000,
+    retry: false,
+  });
+
+/** 立即备份一次。 */
+export const useBackupNow = () =>
+  useAction(() => api.post<BackupInfoDto>('/backups', {}), { success: '已备份数据库' });
 
 /** 健康检查提醒。today 取本机日期，避免服务端时区不同导致差一天。 */
 export const useChecks = (today: string) =>

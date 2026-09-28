@@ -6,6 +6,8 @@
 
 - `pnpm install`：安装依赖（pnpm workspaces + Turborepo）
 - `pnpm dev`：同时启动 API（127.0.0.1:8787）与前端（localhost:5173，/api 代理到 API）
+- `pnpm start`：构建前端后由 API 在 8787 同时托管页面和接口（日常使用）；`docker compose up -d --build` 效果相同
+- `pnpm db:backup [--list]`、`pnpm db:restore <文件>`：备份与恢复，详见 `docs/DEPLOY.md`
 - `pnpm check`：lint + prettier + typecheck + test，提交前必须通过
 - `pnpm e2e`：Playwright 端到端测试，自带临时数据库、假 Zotero 和独立端口（API 8799、前端 5199、Zotero 23199）。云环境里用 `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium pnpm e2e`
 - `pnpm --filter @researchpilot/core test`：只跑某个包的测试
@@ -18,11 +20,12 @@
   - `contracts.ts` 前后端共享的 zod 输入校验和 JSON 返回类型（`Wire<T>` 把 Date 转成字符串）。
   - `types.ts` 服务层返回的视图类型；`errors.ts` 的 `DomainError` 由 API 映射为 400/404。
   - `services/` 按领域划分：tasks、themes、projects、milestones、map、owners、plans、inbox、activity、health、reviews、calendar、resources、drafts。函数第一个参数是 `Conn`（连接或事务）。
+  - `backup.ts` 备份、清理、定时备份、迁移前备份（`migrateWithBackup`）和恢复；`config.ts` 的 `resolveBackupConfig` 读取 `BACKUP_*` 环境变量。
   - `zotero.ts` Zotero 本地 API 只读客户端（可注入 `fetch`）；`testing/fake-zotero.ts` 是测试用的假 Zotero。
   - `services/drafts.ts` 周计划、日计划、周复盘草稿：确定性打分并写出理由，供 MCP 和 Claude 润色。
   - `rules/health.ts` 健康检查的纯函数规则与阈值；`services/health.ts` 负责从数据库组装快照。
   - 入口：`@researchpilot/core`（服务端）、`/contracts`、`/enums`、`/week`、`/health-rules`（前端可用）、`/testing`（仅测试）。
-- `apps/api`：Hono，只做路由、参数校验（`validate.ts`）和序列化，调用 core。路由按领域放在 `src/routes/`。`createApp({ db, today })` 可注入数据库和"今天"，测试用 `app.request()`。
+- `apps/api`：Hono，只做路由、参数校验（`validate.ts`）和序列化，调用 core。路由按领域放在 `src/routes/`。`createApp({ db, today, zotero, backup })` 可注入依赖，测试用 `app.request()`。`src/server.ts` 负责打开数据库、迁移、定时备份和监听；`src/index.ts` 是开发入口（只有 /api），`src/serve.ts` 是正式入口（`web.ts` 托管 `apps/web/dist`）。
 - `apps/web`：React 19 + Vite + Tailwind v4 + shadcn/ui（new-york 风格）+ TanStack Router（代码式路由，`src/router.tsx`）+ TanStack Query。路径别名 `@/` 指向 `src/`。
   - `src/pages/` 七个页面（今日、本周、议题地图、课题、收件箱、提醒、回顾）；`src/components/tasks/` 任务相关的复用组件；`src/lib/queries.ts` 查询与写操作（`useAction` 成功后刷新全部数据并弹提示）。
 - `apps/mcp`：stdio MCP 服务器（`@modelcontextprotocol/sdk`），只调用 core。`src/server.ts` 注册 `rp_` 前缀的工具和三个提示，`src/format.ts` 输出给 Claude 看的 Markdown；`bin/researchpilot-mcp.mjs` 用 tsx 直接运行源码，根目录 `.mcp.json` 已登记。stdio 下标准输出只能传协议消息，日志写 stderr。测试用 SDK 的 `InMemoryTransport`。
@@ -43,6 +46,8 @@
 - 提醒、评分、健康判断用确定性代码实现；AI 只负责起草和润色文字。
 - 前端只能 `import type` 自 `@researchpilot/core/contracts`，运行时的枚举和常量从 `/enums` 导入（ESLint 会检查），避免把 zod 打包进前端。
 - 表结构变更：改 `schema.ts` → `pnpm db:generate --name <描述>` → 提交生成的 `packages/core/drizzle/` 文件。不要手改已提交的迁移。
+- 程序入口（API、MCP、`db:migrate`）用 `migrateWithBackup` 升级数据库，先备份再迁移；`runMigrations` 只在测试和新建数据库时直接用。
+- Docker 镜像只包含 API、core 和前端构建产物。新增运行时需要的包放进 `dependencies`，并确认 `docker build .` 仍能通过。
 - TypeScript 锁定 6.0.x，因为 typescript-eslint 尚不支持 7.x。
 - shadcn 组件在 `apps/web/src/components/ui/`。可以用 `pnpm dlx shadcn@latest add <组件>` 添加，也可以手动复制官方源码。
 - 端到端测试用 `data-testid`、可访问名称（aria-label）定位元素；改界面文字时同步更新 `e2e/`。

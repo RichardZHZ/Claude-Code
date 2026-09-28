@@ -13,6 +13,7 @@ import type {
   Theme,
   WeeklyReview,
 } from './schema.ts';
+import type { BackupReason } from './enums.ts';
 import type { HealthIssue, HealthSeverity } from './rules/health.ts';
 
 export type HealthReport = {
@@ -180,4 +181,27 @@ export type WeekReviewDraft = {
   existingReview: WeeklyReview | null;
   /** 按规则整理的复盘要点，可以直接保存，也可以润色后再保存。 */
   suggested: WeeklyReview;
+};
+
+export type BackupInfo = {
+  file: string;
+  path: string;
+  createdAt: Date;
+  /** 字节数。 */
+  size: number;
+  reason: BackupReason;
+};
+
+export type BackupStatus = {
+  /** 备份目录。 */
+  dir: string;
+  /** 是否在应用运行时自动备份。 */
+  auto: boolean;
+  intervalHours: number;
+  keep: number;
+  /** 最近一次备份（没有则为 null）。 */
+  latest: BackupInfo | null;
+  /** 距最近一次备份超过两个间隔（或从未备份且自动备份关闭）时为 true。 */
+  overdue: boolean;
+  items: BackupInfo[];
 };

@@ -8,6 +8,14 @@ export * from './rules/health.ts';
 export * from './services/index.ts';
 export { openDb, pingDb, type Db, type Conn, type Tx } from './db.ts';
 export { runMigrations, MIGRATIONS_DIR } from './migrate.ts';
-export { resolveDbPath, DEFAULT_DB_PATH, resolveZoteroUrl, DEFAULT_ZOTERO_URL } from './config.ts';
+export {
+  resolveDbPath,
+  DEFAULT_DB_PATH,
+  resolveZoteroUrl,
+  DEFAULT_ZOTERO_URL,
+  resolveBackupConfig,
+  type BackupConfig,
+} from './config.ts';
+export * from './backup.ts';
 export { seedSampleData } from './seed.ts';
 export * from './zotero.ts';
