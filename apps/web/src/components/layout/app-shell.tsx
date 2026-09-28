@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, Outlet } from '@tanstack/react-router';
+import { Link, Outlet, useRouterState } from '@tanstack/react-router';
 import {
   Bell,
   CalendarDays,
@@ -26,6 +26,12 @@ const NAV = [
   { to: '/checks', label: '提醒', icon: Bell },
   { to: '/history', label: '回顾', icon: History },
 ] as const;
+
+/** 根布局：桌面小窗（/widget）不要侧栏和导航，其余页面都放在应用外框里。 */
+export function RootLayout() {
+  const isWidget = useRouterState({ select: (s) => s.location.pathname === '/widget' });
+  return isWidget ? <Outlet /> : <AppShell />;
+}
 
 export function AppShell() {
   const inbox = useInbox();

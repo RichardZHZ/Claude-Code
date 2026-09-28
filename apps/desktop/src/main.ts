@@ -16,6 +16,7 @@ import {
   type MenuItemConstructorOptions,
 } from 'electron';
 import { DEFAULT_DB_PATH } from '@researchpilot/core/config';
+import { DesktopWidget } from './widget.ts';
 
 const APP_TITLE = '科研小助理';
 /** 优先用这个端口，这样日历订阅地址保持不变；被占用时换一个空闲端口。 */
@@ -45,7 +46,9 @@ const paths = app.isPackaged
 let server: ChildProcess | null = null;
 let serverUrl = '';
 let mainWindow: BrowserWindow | null = null;
+let widget: DesktopWidget | null = null;
 let quitting = false;
+const isMac = process.platform === 'darwin';
 
 function log(message: string) {
   try {
@@ -147,7 +150,19 @@ function openExternally(url: string) {
   else if (/^(https?|mailto|zotero):/i.test(url)) void shell.openExternal(url);
 }
 
-function createWindow() {
+/** 显示主窗口；传入页面路径时切换到那个页面。 */
+function showMain(path?: string) {
+  if (!mainWindow) {
+    createWindow(path ?? '/today');
+    return;
+  }
+  if (path) void mainWindow.loadURL(`${serverUrl}${path}`);
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function createWindow(path: string) {
   const win = new BrowserWindow({
     width: 1280,
     height: 860,
@@ -171,7 +186,7 @@ function createWindow() {
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null;
   });
-  void win.loadURL(`${serverUrl}/today`);
+  void win.loadURL(`${serverUrl}${path}`);
   mainWindow = win;
 }
 
@@ -201,7 +216,7 @@ function buildMenu() {
     { label: '打开数据文件夹', click: () => void shell.openPath(dataDir) },
     { label: '查看日志', click: () => void shell.openPath(logFile) },
   ];
-  const isMac = process.platform === 'darwin';
+  const loginItem = isMac || process.platform === 'win32';
   const template: MenuItemConstructorOptions[] = [
     ...(isMac
       ? [
@@ -209,6 +224,13 @@ function buildMenu() {
             label: APP_TITLE,
             submenu: [
               { role: 'about', label: `关于${APP_TITLE}` },
+              { type: 'separator' },
+              {
+                label: '开机时自动打开',
+                type: 'checkbox',
+                checked: app.getLoginItemSettings().openAtLogin,
+                click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
+              },
               { type: 'separator' },
               { role: 'hide', label: `隐藏${APP_TITLE}` },
               { role: 'hideOthers', label: '隐藏其他' },
@@ -218,7 +240,25 @@ function buildMenu() {
             ],
           } satisfies MenuItemConstructorOptions,
         ]
-      : [{ label: '文件', submenu: [{ role: 'quit', label: '退出' }] } satisfies MenuItemConstructorOptions]),
+      : [
+          {
+            label: '文件',
+            submenu: [
+              ...(loginItem
+                ? [
+                    {
+                      label: '开机时自动打开',
+                      type: 'checkbox',
+                      checked: app.getLoginItemSettings().openAtLogin,
+                      click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
+                    } satisfies MenuItemConstructorOptions,
+                    { type: 'separator' } satisfies MenuItemConstructorOptions,
+                  ]
+                : []),
+              { role: 'quit', label: '退出' },
+            ],
+          } satisfies MenuItemConstructorOptions,
+        ]),
     {
       label: '编辑',
       submenu: [
@@ -234,6 +274,21 @@ function buildMenu() {
     {
       label: '显示',
       submenu: [
+        {
+          label: '桌面小窗',
+          type: 'checkbox',
+          checked: widget?.visible ?? false,
+          accelerator: 'CmdOrCtrl+Shift+D',
+          click: () => widget?.toggle(),
+        },
+        {
+          label: '小窗固定在最上层',
+          type: 'checkbox',
+          checked: widget?.pinned ?? false,
+          enabled: widget?.visible ?? false,
+          click: () => widget?.setPinned(!widget.pinned),
+        },
+        { type: 'separator' },
         { role: 'reload', label: '重新载入' },
         { role: 'toggleDevTools', label: '开发者工具' },
         { type: 'separator' },
@@ -265,9 +320,7 @@ if (!app.requestSingleInstanceLock()) {
   app.setName(APP_TITLE);
 
   app.on('second-instance', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
+    if (serverUrl) showMain();
   });
 
   app.whenReady().then(async () => {
@@ -284,11 +337,19 @@ if (!app.requestSingleInstanceLock()) {
       app.exit(1);
       return;
     }
-    createWindow();
-    // macOS：关掉窗口后应用仍在程序坞里，点一下重新打开窗口。
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    widget = new DesktopWidget({
+      serverUrl: () => serverUrl,
+      openMain: showMain,
+      openExternally,
+      onChange: buildMenu,
     });
+    widget.restore();
+    // 开机自动打开时只显示桌面小窗，不弹出主窗口（小窗关着的话仍打开主窗口）。
+    const atLogin = isMac && app.getLoginItemSettings().wasOpenedAtLogin;
+    if (!atLogin || !widget.visible) showMain();
+    buildMenu();
+    // macOS：关掉主窗口后应用仍在程序坞里（小窗也还在），点程序坞图标重新打开主窗口。
+    app.on('activate', () => showMain());
   });
 
   app.on('window-all-closed', () => {
