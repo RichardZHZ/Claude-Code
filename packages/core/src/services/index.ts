@@ -7,3 +7,7 @@ export * from './map.ts';
 export * from './owners.ts';
 export * from './plans.ts';
 export * from './inbox.ts';
+export * from './activity.ts';
+export * from './health.ts';
+export * from './reviews.ts';
+export * from './calendar.ts';

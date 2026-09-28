@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Outlet } from '@tanstack/react-router';
-import { CalendarDays, CalendarRange, Inbox, Network, Send } from 'lucide-react';
+import { Bell, CalendarDays, CalendarRange, History, Inbox, Network, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
-import { useAction, useHealth, useInbox } from '@/lib/queries';
+import { todayString } from '@/lib/format';
+import { useAction, useChecks, useHealth, useInbox } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 const NAV = [
@@ -13,11 +14,26 @@ const NAV = [
   { to: '/week', label: '本周', icon: CalendarRange },
   { to: '/map', label: '议题地图', icon: Network },
   { to: '/inbox', label: '收件箱', icon: Inbox },
+  { to: '/checks', label: '提醒', icon: Bell },
+  { to: '/history', label: '回顾', icon: History },
 ] as const;
 
 export function AppShell() {
   const inbox = useInbox();
   const pending = inbox.data?.pending.length ?? 0;
+  const [today] = useState(todayString);
+  const checks = useChecks(today);
+  const alerts = (checks.data?.counts.danger ?? 0) + (checks.data?.counts.warning ?? 0);
+  const badges: Partial<
+    Record<(typeof NAV)[number]['to'], { count: number; label: string; urgent?: boolean }>
+  > = {
+    '/inbox': { count: pending, label: `${pending} 条待处理` },
+    '/checks': {
+      count: alerts,
+      label: `${alerts} 条需要注意`,
+      urgent: (checks.data?.counts.danger ?? 0) > 0,
+    },
+  };
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[232px_minmax(0,1fr)]">
@@ -38,9 +54,13 @@ export function AppShell() {
             >
               <Icon className="size-4" />
               {label}
-              {to === '/inbox' && pending > 0 && (
-                <Badge variant="secondary" className="ml-auto px-1.5 py-0" aria-label={`${pending} 条待处理`}>
-                  {pending}
+              {(badges[to]?.count ?? 0) > 0 && (
+                <Badge
+                  variant={badges[to]?.urgent ? 'destructive' : 'secondary'}
+                  className="ml-auto px-1.5 py-0"
+                  aria-label={badges[to]?.label}
+                >
+                  {badges[to]?.count}
                 </Badge>
               )}
             </Link>

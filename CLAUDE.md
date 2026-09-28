@@ -17,11 +17,12 @@
   - `schema.ts` 表结构；`enums.ts` 状态取值与中文名；`week.ts` 日期与 ISO 周工具。
   - `contracts.ts` 前后端共享的 zod 输入校验和 JSON 返回类型（`Wire<T>` 把 Date 转成字符串）。
   - `types.ts` 服务层返回的视图类型；`errors.ts` 的 `DomainError` 由 API 映射为 400/404。
-  - `services/` 按领域划分：tasks、themes、projects、milestones、map、owners、plans、inbox。函数第一个参数是 `Conn`（连接或事务）。
-  - 入口：`@researchpilot/core`（服务端）、`/contracts`、`/enums`、`/week`（前端可用）。
+  - `services/` 按领域划分：tasks、themes、projects、milestones、map、owners、plans、inbox、activity、health、reviews、calendar。函数第一个参数是 `Conn`（连接或事务）。
+  - `rules/health.ts` 健康检查的纯函数规则与阈值；`services/health.ts` 负责从数据库组装快照。
+  - 入口：`@researchpilot/core`（服务端）、`/contracts`、`/enums`、`/week`、`/health-rules`（前端可用）。
 - `apps/api`：Hono，只做路由、参数校验（`validate.ts`）和序列化，调用 core。路由按领域放在 `src/routes/`。`createApp({ db, today })` 可注入数据库和"今天"，测试用 `app.request()`。
 - `apps/web`：React 19 + Vite + Tailwind v4 + shadcn/ui（new-york 风格）+ TanStack Router（代码式路由，`src/router.tsx`）+ TanStack Query。路径别名 `@/` 指向 `src/`。
-  - `src/pages/` 五个页面；`src/components/tasks/` 任务相关的复用组件；`src/lib/queries.ts` 查询与写操作（`useAction` 成功后刷新全部数据并弹提示）。
+  - `src/pages/` 七个页面（今日、本周、议题地图、课题、收件箱、提醒、回顾）；`src/components/tasks/` 任务相关的复用组件；`src/lib/queries.ts` 查询与写操作（`useAction` 成功后刷新全部数据并弹提示）。
 - 之后的 `apps/mcp` 同样只调用 core。API 和 web 不直接依赖 drizzle-orm。
 
 ## 约定
@@ -31,6 +32,9 @@
 - 任务必须挂在课题或议题下（数据库 CHECK 约束 + 服务层校验）。周计划、日计划只引用任务，不复制任务。
 - 排期规则集中在 `services/tasks.ts` 的 `updateTask`：排到某天会确定所在周；换周会取消具体日期。
 - 课题进度等派生数据实时计算，不存库。
+- 服务层每个写操作都要调用 `logActivity`（`services/activity.ts`），带上 `projectId` / `themeId` 上下文和 `payload.title`；没有实际变化时不记。新增动作要同时更新 `describeActivity` 的中文说明和 `enums.ts` 的 `ACTIVITY_ACTIONS`。
+- `reviews` 表只追加、不修改不删除；复盘的最新版本同时写在 `weekly_plans` / `daily_plans` 里。
+- `pnpm dev` 经 Turborepo 启动，需要传给子任务的环境变量必须列在 `turbo.json` 的 `passThroughEnv` 里。
 - 提醒、评分、健康判断用确定性代码实现；AI 只负责起草和润色文字。
 - 前端只能 `import type` 自 `@researchpilot/core/contracts`，运行时的枚举和常量从 `/enums` 导入（ESLint 会检查），避免把 zod 打包进前端。
 - 表结构变更：改 `schema.ts` → `pnpm db:generate --name <描述>` → 提交生成的 `packages/core/drizzle/` 文件。不要手改已提交的迁移。

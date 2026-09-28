@@ -49,6 +49,16 @@ export function dateTimeLabel(iso: string): string {
   return `${monthDay(toDateString(new Date(iso)))} ${timeOfDay(iso)}`;
 }
 
+/** ISO 时间戳相对今天的描述：'今天 14:05'、'昨天 09:30'、'3 天前'、'9月2日'。 */
+export function relativeTime(iso: string, today: string): string {
+  const date = toDateString(new Date(iso));
+  const days = daysBetween(date, today);
+  if (days <= 0) return `今天 ${timeOfDay(iso)}`;
+  if (days === 1) return `昨天 ${timeOfDay(iso)}`;
+  if (days < 7) return `${days} 天前`;
+  return date.slice(0, 4) === today.slice(0, 4) ? monthDay(date) : `${date.slice(0, 4)}年${monthDay(date)}`;
+}
+
 /** 多行文本 ↔ 字符串列表。 */
 export const linesToList = (text: string) =>
   text

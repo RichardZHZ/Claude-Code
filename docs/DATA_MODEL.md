@@ -17,7 +17,8 @@ daily_plans.top_task_ids                         当天最重要的 3 件事
 
 inbox_items   随手记，可升级为议题、课题或任务
 resources     资源链接，挂在议题、课题或任务上
-activity_log  所有写操作的记录
+activity_log  所有写操作的记录（附课题、议题上下文，不设外键）
+reviews       复盘快照：每保存一次复盘追加一条，从不修改
 ```
 
 ## 各表字段
@@ -84,7 +85,29 @@ activity_log  所有写操作的记录
 
 ### activity_log 活动日志
 
-`entity_type`、`entity_id`、`action`、`payload`、`at`。第二阶段起所有写操作都会记录在这里，用于判断课题是否停滞以及回看历史。
+服务层的每个写操作都会记一条，用于判断课题是否停滞、显示课题的"最近动态"。一次写操作只记一条，取最能概括这次变化的动作。
+
+| 字段 | 说明 |
+| --- | --- |
+| entity_type, entity_id | 被修改的对象：`theme` / `project` / `milestone` / `task` / `weekly_plan` / `daily_plan` / `inbox_item` |
+| action | `created` / `updated` / `deleted` / `completed` / `reopened` / `status_changed` / `scheduled` / `unscheduled` / `moved` / `planned` / `journaled` / `reviewed` / `promoted` |
+| project_id, theme_id | 写入时所属的课题和议题。不设外键，对象删除后记录仍在 |
+| payload | `{ title, changes: { 字段: [旧值, 新值] }, ... }`。title 是写入时的标题快照 |
+| at | 发生时刻 |
+
+中文说明（例如"完成任务"跑回归""）由 `services/activity.ts` 的 `describeActivity` 在读取时生成，不存库。
+
+### reviews 复盘快照
+
+每保存一次周复盘或日复盘就追加一条，从不修改或删除。`weekly_plans` / `daily_plans` 里的 `review` 字段只保存最新一版，方便继续编辑。
+
+| 字段 | 说明 |
+| --- | --- |
+| kind | `week` 或 `day` |
+| period_key | 周复盘为 `2026-W40`，日复盘为 `2026-09-28` |
+| content | 复盘内容，与计划表里的 review 结构相同 |
+| stats | 保存时自动统计。周：本周重点、完成数、总数、完成与未完成的任务标题。日：最重要的事及是否完成、完成数、总数 |
+| created_at | 保存时刻 |
 
 ## 存储约定
 

@@ -1,7 +1,30 @@
 // 服务层返回的"视图"类型。只依赖 schema.ts 的类型，不引入数据库连接，
 // 因此前端也可以通过 contracts.ts 安全地引用（经 Wire<> 转成 JSON 形态）。
 
-import type { DailyReview, InboxItem, Milestone, Project, Task, Theme, WeeklyReview } from './schema.ts';
+import type {
+  ActivityLogEntry,
+  DailyReview,
+  InboxItem,
+  Milestone,
+  Project,
+  Review,
+  Task,
+  Theme,
+  WeeklyReview,
+} from './schema.ts';
+import type { HealthIssue, HealthSeverity } from './rules/health.ts';
+
+export type HealthReport = {
+  today: string;
+  issues: HealthIssue[];
+  counts: Record<HealthSeverity, number>;
+};
+
+/** 复盘时间线里的一项：某个周期的最新一版复盘。 */
+export type ReviewEntry = Review & { versions: number };
+
+/** 活动记录附带一句中文说明。 */
+export type ActivityView = ActivityLogEntry & { summary: string };
 
 export type Progress = {
   done: number;

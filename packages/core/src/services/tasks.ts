@@ -1,11 +1,12 @@
 import { and, asc, eq, isNull, lt, ne, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import type { CreateTaskInput, TaskQuery, UpdateTaskInput } from '../contracts.ts';
 import type { Conn } from '../db.ts';
-import { CLOSED_PROJECT_STATUSES } from '../enums.ts';
+import { CLOSED_PROJECT_STATUSES, type ActivityAction } from '../enums.ts';
 import { invalid, notFound } from '../errors.ts';
 import { milestones, projects, tasks, themes, type NewTask, type Task } from '../schema.ts';
 import type { TaskView } from '../types.ts';
 import { isoWeekKey } from '../week.ts';
+import { diffFields, logActivity } from './activity.ts';
 
 /** 任务实际所属的议题：直接挂议题的取 tasks.theme_id，否则取所属课题的议题。 */
 const ownerThemeId = sql<number | null>`coalesce(${tasks.themeId}, ${projects.themeId})`;
@@ -140,7 +141,33 @@ export function createTask(db: Conn, input: CreateTaskInput): TaskView {
     doneAt: status === 'done' ? new Date() : null,
   };
   const row = db.insert(tasks).values(values).returning({ id: tasks.id }).get();
-  return getTaskView(db, row.id);
+  const view = getTaskView(db, row.id);
+  logActivity(db, {
+    entityType: 'task',
+    entityId: view.id,
+    action: 'created',
+    projectId: view.projectId,
+    themeId: view.ownerThemeId,
+    payload: { title: view.title },
+  });
+  return view;
+}
+
+/** 根据变化的字段挑一个最能概括这次修改的动作。 */
+function taskAction(changes: Record<string, [unknown, unknown]>): ActivityAction {
+  if (changes.status) {
+    const [from, to] = changes.status;
+    if (to === 'done') return 'completed';
+    if (from === 'done') return 'reopened';
+    return 'status_changed';
+  }
+  if (changes.scheduledDate || changes.weekKey) {
+    const date = changes.scheduledDate ? changes.scheduledDate[1] : undefined;
+    const week = changes.weekKey ? changes.weekKey[1] : undefined;
+    return date || week ? 'scheduled' : 'unscheduled';
+  }
+  if (changes.projectId || changes.themeId || changes.milestoneId) return 'moved';
+  return 'updated';
 }
 
 export function updateTask(db: Conn, id: number, patch: UpdateTaskInput): TaskView {
@@ -192,13 +219,34 @@ export function updateTask(db: Conn, id: number, patch: UpdateTaskInput): TaskVi
   if (patch.priority !== undefined) set.priority = patch.priority;
   if (patch.estimateMin !== undefined) set.estimateMin = patch.estimateMin;
 
+  const { doneAt: _doneAt, ...visible } = set;
+  const changes = diffFields(existing, visible);
   if (Object.keys(set).length > 0) db.update(tasks).set(set).where(eq(tasks.id, id)).run();
-  return getTaskView(db, id);
+  const view = getTaskView(db, id);
+  if (Object.keys(changes).length > 0) {
+    logActivity(db, {
+      entityType: 'task',
+      entityId: id,
+      action: taskAction(changes),
+      projectId: view.projectId,
+      themeId: view.ownerThemeId,
+      payload: { title: view.title, changes },
+    });
+  }
+  return view;
 }
 
 export function deleteTask(db: Conn, id: number): void {
-  const res = db.delete(tasks).where(eq(tasks.id, id)).run();
-  if (res.changes === 0) throw notFound('任务', id);
+  const view = getTaskView(db, id);
+  db.delete(tasks).where(eq(tasks.id, id)).run();
+  logActivity(db, {
+    entityType: 'task',
+    entityId: id,
+    action: 'deleted',
+    projectId: view.projectId,
+    themeId: view.ownerThemeId,
+    payload: { title: view.title },
+  });
 }
 
 /** 更早日期排了但没做完的任务。 */

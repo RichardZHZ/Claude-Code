@@ -4,6 +4,7 @@ export * from './enums.ts';
 export * from './week.ts';
 export * from './errors.ts';
 export * from './types.ts';
+export * from './rules/health.ts';
 export * from './services/index.ts';
 export { openDb, pingDb, type Db, type Conn, type Tx } from './db.ts';
 export { runMigrations, MIGRATIONS_DIR } from './migrate.ts';

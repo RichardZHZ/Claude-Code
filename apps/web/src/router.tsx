@@ -1,6 +1,8 @@
 import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router';
 import { isValidDate, isValidWeekKey } from '@researchpilot/core/week';
 import { AppShell, NotFound } from '@/components/layout/app-shell';
+import { ChecksPage } from '@/pages/checks-page';
+import { HistoryPage } from '@/pages/history-page';
 import { InboxPage } from '@/pages/inbox-page';
 import { MapPage } from '@/pages/map-page';
 import { ProjectPage } from '@/pages/project-page';
@@ -43,8 +45,27 @@ const projectRoute = createRoute({
 
 const inboxRoute = createRoute({ getParentRoute: () => rootRoute, path: '/inbox', component: InboxPage });
 
+const checksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/checks', component: ChecksPage });
+
+const historyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/history',
+  validateSearch: (search: Record<string, unknown>): { k?: 'week' | 'day' } =>
+    search.k === 'week' || search.k === 'day' ? { k: search.k } : {},
+  component: HistoryPage,
+});
+
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([indexRoute, todayRoute, weekRoute, mapRoute, projectRoute, inboxRoute]),
+  routeTree: rootRoute.addChildren([
+    indexRoute,
+    todayRoute,
+    weekRoute,
+    mapRoute,
+    projectRoute,
+    inboxRoute,
+    checksRoute,
+    historyRoute,
+  ]),
   defaultPreload: 'intent',
   scrollRestoration: true,
 });

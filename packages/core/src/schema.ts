@@ -1,7 +1,9 @@
 import { sql } from 'drizzle-orm';
 import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import {
+  ACTIVITY_ACTIONS,
   ENTITY_TYPES,
+  REVIEW_KINDS,
   PROJECT_KINDS,
   PROJECT_STATUSES,
   PROMOTE_TYPES,
@@ -167,20 +169,74 @@ export const resources = sqliteTable(
   (t) => [index('resources_owner_idx').on(t.ownerType, t.ownerId)],
 );
 
-/** 活动日志：记录所有写操作，用于判断课题是否停滞以及回看历史。 */
+export type ActivityPayload = {
+  /** 写入时对象的标题快照：对象被删除后仍能看懂这条记录。 */
+  title?: string;
+  /** 变化的字段：[旧值, 新值]。 */
+  changes?: Record<string, [unknown, unknown]>;
+  /** 其他补充信息，例如周编号、日期、升级后的类型。 */
+  [key: string]: unknown;
+};
+
+/**
+ * 活动日志：记录所有写操作，用于判断课题是否停滞以及回看历史。
+ * project_id / theme_id 是写入时的上下文，不设外键：对象删除后记录仍保留。
+ */
 export const activityLog = sqliteTable(
   'activity_log',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
     entityType: text('entity_type', { enum: ENTITY_TYPES }).notNull(),
     entityId: integer('entity_id').notNull(),
-    action: text('action').notNull(),
-    payload: text('payload', { mode: 'json' }).$type<Record<string, unknown>>(),
+    action: text('action', { enum: ACTIVITY_ACTIONS }).notNull(),
+    projectId: integer('project_id'),
+    themeId: integer('theme_id'),
+    payload: text('payload', { mode: 'json' }).$type<ActivityPayload>(),
     at: integer('at', { mode: 'timestamp_ms' })
       .notNull()
       .$defaultFn(() => new Date()),
   },
-  (t) => [index('activity_entity_idx').on(t.entityType, t.entityId), index('activity_at_idx').on(t.at)],
+  (t) => [
+    index('activity_entity_idx').on(t.entityType, t.entityId),
+    index('activity_at_idx').on(t.at),
+    index('activity_project_idx').on(t.projectId, t.at),
+    index('activity_theme_idx').on(t.themeId, t.at),
+  ],
+);
+
+export type WeekReviewStats = {
+  focus: string[];
+  done: number;
+  total: number;
+  completed: string[];
+  unfinished: string[];
+};
+
+export type DayReviewStats = {
+  topTasks: { title: string; done: boolean }[];
+  done: number;
+  total: number;
+};
+
+/**
+ * 复盘快照：每保存一次复盘就追加一条，从不修改或删除，构成研究历史。
+ * weekly_plans / daily_plans 里的 review 字段只保存最新一版，方便继续编辑。
+ */
+export const reviews = sqliteTable(
+  'reviews',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    kind: text('kind', { enum: REVIEW_KINDS }).notNull(),
+    /** 周复盘为 'YYYY-Www'，日复盘为 'YYYY-MM-DD'。 */
+    periodKey: text('period_key').notNull(),
+    content: text('content', { mode: 'json' }).$type<WeeklyReview | DailyReview>().notNull(),
+    /** 保存时自动统计的完成情况。 */
+    stats: text('stats', { mode: 'json' }).$type<WeekReviewStats | DayReviewStats>().notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index('reviews_period_idx').on(t.kind, t.periodKey)],
 );
 
 export type Theme = typeof themes.$inferSelect;
@@ -196,3 +252,4 @@ export type DailyPlan = typeof dailyPlans.$inferSelect;
 export type InboxItem = typeof inboxItems.$inferSelect;
 export type Resource = typeof resources.$inferSelect;
 export type ActivityLogEntry = typeof activityLog.$inferSelect;
+export type Review = typeof reviews.$inferSelect;

@@ -12,6 +12,7 @@ import {
   type Project,
 } from '../schema.ts';
 import type { MilestoneView, ProjectDetail } from '../types.ts';
+import { diffFields, logActivity } from './activity.ts';
 import { progressFromTasks } from './progress.ts';
 import { queryTaskViews } from './tasks.ts';
 
@@ -63,11 +64,20 @@ export function createProject(db: Conn, input: CreateProjectInput): Project {
     description: input.description ?? null,
     currentStatus: input.currentStatus ?? null,
   };
-  return db.insert(projects).values(values).returning().get();
+  const project = db.insert(projects).values(values).returning().get();
+  logActivity(db, {
+    entityType: 'project',
+    entityId: project.id,
+    action: 'created',
+    projectId: project.id,
+    themeId: project.themeId,
+    payload: { title: project.title },
+  });
+  return project;
 }
 
 export function updateProject(db: Conn, id: number, patch: UpdateProjectInput): Project {
-  getProject(db, id);
+  const existing = getProject(db, id);
   assertThemeExists(db, patch.themeId);
   const set: Partial<NewProject> = {};
   for (const key of [
@@ -83,14 +93,34 @@ export function updateProject(db: Conn, id: number, patch: UpdateProjectInput): 
   ] as const) {
     if (patch[key] !== undefined) Object.assign(set, { [key]: patch[key] });
   }
-  if (Object.keys(set).length > 0) db.update(projects).set(set).where(eq(projects.id, id)).run();
-  return getProject(db, id);
+  const changes = diffFields(existing, set);
+  if (Object.keys(changes).length === 0) return existing;
+  db.update(projects).set(set).where(eq(projects.id, id)).run();
+  const project = getProject(db, id);
+  const onlyStatus = changes.status && Object.keys(changes).length === 1;
+  logActivity(db, {
+    entityType: 'project',
+    entityId: id,
+    action: onlyStatus ? (project.status === 'done' ? 'completed' : 'status_changed') : 'updated',
+    projectId: id,
+    themeId: project.themeId,
+    payload: { title: project.title, changes },
+  });
+  return project;
 }
 
 /** 删除课题：其里程碑和任务一并删除。 */
 export function deleteProject(db: Conn, id: number): void {
-  const res = db.delete(projects).where(eq(projects.id, id)).run();
-  if (res.changes === 0) throw notFound('课题', id);
+  const project = getProject(db, id);
+  db.delete(projects).where(eq(projects.id, id)).run();
+  logActivity(db, {
+    entityType: 'project',
+    entityId: id,
+    action: 'deleted',
+    projectId: id,
+    themeId: project.themeId,
+    payload: { title: project.title },
+  });
 }
 
 /** 给里程碑附上各自的任务完成进度。 */

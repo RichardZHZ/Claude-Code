@@ -34,8 +34,8 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
-import { dueInfo, monthDay, todayString } from '@/lib/format';
-import { useAction, useProject, useTaskActions } from '@/lib/queries';
+import { dueInfo, monthDay, relativeTime, todayString } from '@/lib/format';
+import { useAction, useActivityFeed, useProject, useTaskActions } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 export function ProjectPage() {
@@ -131,6 +131,7 @@ function ProjectContent({ project }: { project: ProjectDetailDto }) {
       </div>
 
       <TaskBoard project={project} today={today} />
+      <ActivityCard projectId={project.id} today={today} />
     </div>
   );
 }
@@ -368,6 +369,44 @@ function TaskBoard({ project, today }: { project: ProjectDetailDto; today: strin
           );
         })}
       </div>
+    </Section>
+  );
+}
+
+/** 课题的最近动态：来自活动日志，课题下任务、里程碑的变化都会出现在这里。 */
+function ActivityCard({ projectId, today }: { projectId: number; today: string }) {
+  const feed = useActivityFeed({ projectId });
+  const entries = feed.data?.pages.flat() ?? [];
+  return (
+    <Section title="最近动态" description="这个课题下发生过的所有变化。" testId="activity-feed">
+      {feed.isPending ? (
+        <EmptyHint>加载中…</EmptyHint>
+      ) : entries.length === 0 ? (
+        <EmptyHint>还没有动态。</EmptyHint>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <ol className="flex flex-col border-l pl-4">
+            {entries.map((a) => (
+              <li key={a.id} className="relative py-1.5 text-sm">
+                <span className="absolute top-3 -left-[21px] size-2 rounded-full bg-border" aria-hidden />
+                <span>{a.summary}</span>
+                <span className="ml-2 text-xs text-muted-foreground">{relativeTime(a.at, today)}</span>
+              </li>
+            ))}
+          </ol>
+          {feed.hasNextPage && (
+            <Button
+              variant="link"
+              size="sm"
+              className="self-start px-0"
+              disabled={feed.isFetchingNextPage}
+              onClick={() => void feed.fetchNextPage()}
+            >
+              {feed.isFetchingNextPage ? '加载中…' : '查看更早的动态'}
+            </Button>
+          )}
+        </div>
+      )}
     </Section>
   );
 }

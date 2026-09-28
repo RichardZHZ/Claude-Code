@@ -3,6 +3,7 @@ import type { CreateThemeInput, UpdateThemeInput } from '../contracts.ts';
 import type { Conn } from '../db.ts';
 import { notFound } from '../errors.ts';
 import { themes, type NewTheme, type Theme } from '../schema.ts';
+import { diffFields, logActivity } from './activity.ts';
 
 export function listThemes(db: Conn): Theme[] {
   return db
@@ -27,11 +28,19 @@ export function createTheme(db: Conn, input: CreateThemeInput): Theme {
     startedAt: input.startedAt ?? null,
     reviewCadenceDays: input.reviewCadenceDays ?? 30,
   };
-  return db.insert(themes).values(values).returning().get();
+  const theme = db.insert(themes).values(values).returning().get();
+  logActivity(db, {
+    entityType: 'theme',
+    entityId: theme.id,
+    action: 'created',
+    themeId: theme.id,
+    payload: { title: theme.title },
+  });
+  return theme;
 }
 
 export function updateTheme(db: Conn, id: number, patch: UpdateThemeInput): Theme {
-  getTheme(db, id);
+  const existing = getTheme(db, id);
   const set: Partial<NewTheme> = {};
   if (patch.title !== undefined) set.title = patch.title;
   if (patch.description !== undefined) set.description = patch.description;
@@ -39,12 +48,29 @@ export function updateTheme(db: Conn, id: number, patch: UpdateThemeInput): Them
   if (patch.status !== undefined) set.status = patch.status;
   if (patch.startedAt !== undefined) set.startedAt = patch.startedAt;
   if (patch.reviewCadenceDays !== undefined) set.reviewCadenceDays = patch.reviewCadenceDays;
-  if (Object.keys(set).length > 0) db.update(themes).set(set).where(eq(themes.id, id)).run();
-  return getTheme(db, id);
+  const changes = diffFields(existing, set);
+  if (Object.keys(changes).length === 0) return existing;
+  db.update(themes).set(set).where(eq(themes.id, id)).run();
+  const theme = getTheme(db, id);
+  logActivity(db, {
+    entityType: 'theme',
+    entityId: id,
+    action: changes.status && Object.keys(changes).length === 1 ? 'status_changed' : 'updated',
+    themeId: id,
+    payload: { title: theme.title, changes },
+  });
+  return theme;
 }
 
 /** 删除议题：其下课题保留但解除关联；直接挂在议题下的任务一并删除。 */
 export function deleteTheme(db: Conn, id: number): void {
-  const res = db.delete(themes).where(eq(themes.id, id)).run();
-  if (res.changes === 0) throw notFound('议题', id);
+  const theme = getTheme(db, id);
+  db.delete(themes).where(eq(themes.id, id)).run();
+  logActivity(db, {
+    entityType: 'theme',
+    entityId: id,
+    action: 'deleted',
+    themeId: id,
+    payload: { title: theme.title },
+  });
 }

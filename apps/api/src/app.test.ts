@@ -160,3 +160,64 @@ describe('完整流程：议题 → 课题 → 任务 → 本周 → 今天 → 
     expect(owners.data.themes.map((t) => t.id)).toEqual([theme.data.id]);
   });
 });
+
+describe('健康检查、活动记录、复盘时间线、日历', () => {
+  it('GET /api/checks 默认用注入的"今天"，也可以指定日期', async () => {
+    const project = await call<{ id: number }>('POST', '/projects', { title: '论文' });
+    await call('POST', `/projects/${project.data.id}/milestones`, { title: '初稿', dueDate: '2026-09-30' });
+
+    const report = await call<{ today: string; issues: { key: string }[]; counts: Record<string, number> }>(
+      'GET',
+      '/checks',
+    );
+    expect(report.data.today).toBe('2026-09-28');
+    expect(report.data.issues.map((i) => i.key)).toEqual([expect.stringMatching(/^milestone_at_risk:/)]);
+    expect(report.data.counts).toEqual({ danger: 0, warning: 1, info: 0 });
+
+    const later = await call<{ issues: { key: string }[] }>('GET', '/checks?today=2026-09-01');
+    expect(later.data.issues).toEqual([]);
+    expect((await call('GET', '/checks?today=bad')).status).toBe(400);
+  });
+
+  it('GET /api/activity 按课题筛选，附中文说明', async () => {
+    const project = await call<{ id: number }>('POST', '/projects', { title: '论文' });
+    const task = await call<{ id: number }>('POST', '/tasks', {
+      title: '跑回归',
+      projectId: project.data.id,
+    });
+    await call('PATCH', `/tasks/${task.data.id}`, { status: 'done' });
+    await call('POST', '/projects', { title: '别的课题' });
+
+    const feed = await call<{ summary: string; at: string }[]>(
+      'GET',
+      `/activity?projectId=${project.data.id}`,
+    );
+    expect(feed.data.map((a) => a.summary)).toEqual([
+      '完成任务"跑回归"',
+      '新建任务"跑回归"',
+      '新建课题"论文"',
+    ]);
+    expect(typeof feed.data[0]?.at).toBe('string');
+  });
+
+  it('GET /api/reviews 返回复盘时间线', async () => {
+    await call('PUT', '/weeks/2026-W40/review', { wins: ['a'], blockers: [], carryOver: [], reflection: '' });
+    await call('PUT', '/weeks/2026-W40/review', { wins: ['b'], blockers: [], carryOver: [], reflection: '' });
+    const list = await call<{ periodKey: string; versions: number; content: { wins: string[] } }[]>(
+      'GET',
+      '/reviews?kind=week',
+    );
+    expect(list.data).toMatchObject([{ periodKey: '2026-W40', versions: 2, content: { wins: ['b'] } }]);
+    expect((await call('GET', '/reviews?kind=month')).status).toBe(400);
+  });
+
+  it('GET /api/calendar.ics 返回日历文件', async () => {
+    await call('POST', '/projects', { title: '论文', deadline: '2026-12-31' });
+    const res = await app.request('/api/calendar.ics');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('text/calendar; charset=utf-8');
+    const text = await res.text();
+    expect(text).toContain('SUMMARY:截止：论文');
+    expect(text).toContain('DTSTART;VALUE=DATE:20261231');
+  });
+});

@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { Link, useSearch } from '@tanstack/react-router';
-import { CalendarMinus, CalendarPlus, ChevronLeft, ChevronRight, Star, StarOff } from 'lucide-react';
+import {
+  AlertTriangle,
+  CalendarMinus,
+  CalendarPlus,
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  StarOff,
+} from 'lucide-react';
 import { MAX_TOP_TASKS } from '@researchpilot/core/enums';
 import type { DayViewDto, TaskViewDto } from '@researchpilot/core/contracts';
 import { EmptyHint, Field, PageHeader, QueryView, Section } from '@/components/common';
@@ -10,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
 import { longDate, monthDay, timeOfDay, todayString } from '@/lib/format';
-import { useAction, useDay, useTaskActions } from '@/lib/queries';
+import { useAction, useChecks, useDay, useTaskActions } from '@/lib/queries';
 
 export function TodayPage() {
   const { d } = useSearch({ from: '/today' });
@@ -49,7 +57,29 @@ export function TodayPage() {
           </>
         }
       />
+      {date === today && <ChecksBanner today={today} />}
       <QueryView query={day}>{(data) => <DayContent key={date} data={data} />}</QueryView>
+    </div>
+  );
+}
+
+/** 有紧急或需要注意的提醒时，在今日页顶部显示最重要的一条。 */
+function ChecksBanner({ today }: { today: string }) {
+  const checks = useChecks(today);
+  if (!checks.data) return null;
+  const important = checks.data.issues.filter((i) => i.severity !== 'info');
+  if (important.length === 0) return null;
+  const [first] = important;
+  return (
+    <div
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm"
+      data-testid="checks-banner"
+    >
+      <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+      <span className="min-w-0 flex-1">{first?.title}</span>
+      <Link to="/checks" className="font-medium underline-offset-4 hover:underline">
+        {important.length > 1 ? `查看全部 ${important.length} 条提醒` : '查看提醒'}
+      </Link>
     </div>
   );
 }

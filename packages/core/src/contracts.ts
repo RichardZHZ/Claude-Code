@@ -7,12 +7,14 @@ import {
   MAX_WEEK_FOCUS,
   PROJECT_KINDS,
   PROJECT_STATUSES,
+  REVIEW_KINDS,
   TASK_STATUSES,
   THEME_STATUSES,
 } from './enums.ts';
 import { isValidDate, isValidWeekKey } from './week.ts';
 import type * as S from './schema.ts';
 import type * as V from './types.ts';
+import type * as H from './rules/health.ts';
 
 export * from './enums.ts';
 
@@ -176,6 +178,23 @@ export const promoteInboxInput = z.discriminatedUnion('type', [
 export type CreateInboxInput = z.infer<typeof createInboxInput>;
 export type PromoteInboxInput = z.infer<typeof promoteInboxInput>;
 
+// ---------- 健康检查、活动记录、复盘时间线 ----------
+
+const positiveInt = z.coerce.number().int().positive();
+
+export const checksQuery = z.object({ today: date.optional() });
+export const activityQuery = z.object({
+  projectId: positiveInt.optional(),
+  themeId: positiveInt.optional(),
+  before: positiveInt.optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+export const reviewsQuery = z.object({
+  kind: z.enum(REVIEW_KINDS).optional(),
+  before: positiveInt.optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
 // ---------- 接口返回的 JSON 类型 ----------
 
 /** 把服务层类型转成 JSON 传输后的形态：Date 变成 ISO 字符串。 */
@@ -208,3 +227,10 @@ export type OwnerOptionsDto = V.OwnerOptions;
 export type InboxListDto = Wire<V.InboxList>;
 export type PromoteResultDto = Wire<V.PromoteResult>;
 export type ApiErrorBody = { error: string; issues?: { path: string; message: string }[] };
+export type HealthIssueDto = H.HealthIssue;
+export type HealthReportDto = V.HealthReport;
+export type HealthSeverity = H.HealthSeverity;
+export type ActivityDto = Wire<V.ActivityView>;
+export type ReviewEntryDto = Wire<V.ReviewEntry>;
+export type WeekReviewStats = S.WeekReviewStats;
+export type DayReviewStats = S.DayReviewStats;

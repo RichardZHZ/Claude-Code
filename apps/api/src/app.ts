@@ -3,6 +3,7 @@ import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
 import { DomainError, isoWeekKey, pingDb, toDateString, type Db } from '@researchpilot/core';
 import { inboxRoutes } from './routes/inbox.ts';
+import { insightRoutes } from './routes/insights.ts';
 import { planRoutes } from './routes/plans.ts';
 import { projectRoutes } from './routes/projects.ts';
 import { taskRoutes } from './routes/tasks.ts';
@@ -34,6 +35,7 @@ export function createApp({ db, today = () => toDateString(new Date()), log = fa
   app.route('/', taskRoutes(db));
   app.route('/', planRoutes(db));
   app.route('/', inboxRoutes(db));
+  app.route('/', insightRoutes(db, today));
 
   app.notFound((c) => c.json({ error: '未找到该接口' }, 404));
   app.onError((err, c) => {

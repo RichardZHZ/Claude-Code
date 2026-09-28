@@ -1,7 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type {
+  ActivityDto,
   CreateTaskInput,
+  HealthReportDto,
+  ReviewEntryDto,
+  ReviewKind,
   DayViewDto,
   InboxListDto,
   OwnerOptionsDto,
@@ -47,6 +51,43 @@ export const useInbox = () =>
 
 export const useOwners = () =>
   useQuery({ queryKey: ['owners'], queryFn: ({ signal }) => api.get<OwnerOptionsDto>('/owners', signal) });
+
+/** 健康检查提醒。today 取本机日期，避免服务端时区不同导致差一天。 */
+export const useChecks = (today: string) =>
+  useQuery({
+    queryKey: ['checks', today],
+    queryFn: ({ signal }) => api.get<HealthReportDto>(`/checks?today=${today}`, signal),
+  });
+
+/** 按 id 往前翻页的列表：每页最后一条的 id 作为下一页的 before。 */
+function usePagedList<T extends { id: number }>(
+  key: unknown[],
+  path: string,
+  params: Record<string, string>,
+  pageSize: number,
+) {
+  return useInfiniteQuery({
+    queryKey: [...key, params],
+    initialPageParam: undefined as number | undefined,
+    queryFn: ({ pageParam, signal }) => {
+      const qs = new URLSearchParams({ ...params, limit: String(pageSize) });
+      if (pageParam !== undefined) qs.set('before', String(pageParam));
+      return api.get<T[]>(`${path}?${qs}`, signal);
+    },
+    getNextPageParam: (last) => (last.length === pageSize ? last.at(-1)?.id : undefined),
+  });
+}
+
+export const useActivityFeed = (filter: { projectId?: number }, pageSize = 15) =>
+  usePagedList<ActivityDto>(
+    ['activity'],
+    '/activity',
+    filter.projectId ? { projectId: String(filter.projectId) } : {},
+    pageSize,
+  );
+
+export const useReviewTimeline = (kind: ReviewKind | undefined, pageSize = 20) =>
+  usePagedList<ReviewEntryDto>(['reviews'], '/reviews', kind ? { kind } : {}, pageSize);
 
 /**
  * 写操作。成功后刷新所有数据（单用户本地应用，数据量小，全部刷新最简单可靠），

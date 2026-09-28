@@ -4,6 +4,7 @@ import { Pencil, Plus } from 'lucide-react';
 import { PROJECT_KIND_LABELS, PROJECT_STATUS_LABELS, THEME_STATUS_LABELS } from '@researchpilot/core/enums';
 import type { ProjectSummaryDto, ThemeMapEntryDto } from '@researchpilot/core/contracts';
 import { EmptyHint, PageHeader, QueryView } from '@/components/common';
+import { CalendarExport } from '@/components/goals/calendar-export';
 import { ProjectDialog } from '@/components/goals/project-dialog';
 import { ThemeDialog } from '@/components/goals/theme-dialog';
 import { TaskItem, TaskList } from '@/components/tasks/task-item';
@@ -27,6 +28,7 @@ export function MapPage() {
         subtitle="研究议题 → 课题 → 里程碑。进度按任务完成情况计算。"
         actions={
           <>
+            <CalendarExport />
             <ProjectDialog
               trigger={
                 <Button variant="outline">
@@ -210,7 +212,11 @@ function ProjectRow({ project: p, today }: { project: ProjectSummaryDto; today: 
               key={m.id}
               className={cn(
                 'rounded-full border px-2 py-0.5 text-xs',
-                m.doneAt ? 'text-muted-foreground line-through' : 'text-foreground',
+                m.doneAt
+                  ? 'text-muted-foreground line-through'
+                  : m.dueDate && m.dueDate < today
+                    ? 'border-destructive/40 text-destructive'
+                    : 'text-foreground',
               )}
               title={m.dueDate ? `目标日期 ${m.dueDate}` : undefined}
             >

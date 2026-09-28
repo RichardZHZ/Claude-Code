@@ -5,7 +5,32 @@ export const THEME_STATUSES = ['active', 'dormant', 'closed'] as const;
 export const PROJECT_KINDS = ['paper', 'grant', 'thesis_chapter', 'experiment', 'other'] as const;
 export const PROJECT_STATUSES = ['idea', 'active', 'paused', 'submitted', 'done', 'dropped'] as const;
 export const TASK_STATUSES = ['todo', 'doing', 'blocked', 'done'] as const;
-export const ENTITY_TYPES = ['theme', 'project', 'milestone', 'task', 'weekly_plan', 'daily_plan'] as const;
+export const ENTITY_TYPES = [
+  'theme',
+  'project',
+  'milestone',
+  'task',
+  'weekly_plan',
+  'daily_plan',
+  'inbox_item',
+] as const;
+/** 活动日志里的动作。一次写操作只记一条，取最能概括这次变化的动作。 */
+export const ACTIVITY_ACTIONS = [
+  'created',
+  'updated',
+  'deleted',
+  'completed',
+  'reopened',
+  'status_changed',
+  'scheduled',
+  'unscheduled',
+  'moved',
+  'planned',
+  'journaled',
+  'reviewed',
+  'promoted',
+] as const;
+export const REVIEW_KINDS = ['week', 'day'] as const;
 export const RESOURCE_OWNER_TYPES = ['theme', 'project', 'task'] as const;
 export const RESOURCE_KINDS = ['url', 'zotero', 'file'] as const;
 export const PROMOTE_TYPES = ['theme', 'project', 'task'] as const;
@@ -15,6 +40,9 @@ export type ProjectKind = (typeof PROJECT_KINDS)[number];
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type PromoteType = (typeof PROMOTE_TYPES)[number];
+export type EntityType = (typeof ENTITY_TYPES)[number];
+export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
+export type ReviewKind = (typeof REVIEW_KINDS)[number];
 
 export const THEME_STATUS_LABELS: Record<ThemeStatus, string> = {
   active: '进行中',

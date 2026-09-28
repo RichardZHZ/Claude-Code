@@ -4,6 +4,7 @@ import type { Conn } from '../db.ts';
 import { invalid, notFound } from '../errors.ts';
 import { inboxItems, type InboxItem } from '../schema.ts';
 import type { InboxList, PromoteResult } from '../types.ts';
+import { logActivity } from './activity.ts';
 import { createProject } from './projects.ts';
 import { createTask } from './tasks.ts';
 import { createTheme } from './themes.ts';
@@ -29,13 +30,33 @@ export function listInbox(db: Conn): InboxList {
   };
 }
 
+/** 活动记录里用的简短摘录。 */
+function excerpt(content: string): string {
+  const line = defaultTitle(content);
+  return line.length > 40 ? `${line.slice(0, 40)}…` : line;
+}
+
 export function createInboxItem(db: Conn, input: CreateInboxInput): InboxItem {
-  return db.insert(inboxItems).values({ content: input.content }).returning().get();
+  const item = db.insert(inboxItems).values({ content: input.content }).returning().get();
+  logActivity(db, {
+    entityType: 'inbox_item',
+    entityId: item.id,
+    action: 'created',
+    payload: { title: excerpt(item.content) },
+  });
+  return item;
 }
 
 export function deleteInboxItem(db: Conn, id: number): void {
-  const res = db.delete(inboxItems).where(eq(inboxItems.id, id)).run();
-  if (res.changes === 0) throw notFound('收件箱记录', id);
+  const item = db.select().from(inboxItems).where(eq(inboxItems.id, id)).get();
+  if (!item) throw notFound('收件箱记录', id);
+  db.delete(inboxItems).where(eq(inboxItems.id, id)).run();
+  logActivity(db, {
+    entityType: 'inbox_item',
+    entityId: id,
+    action: 'deleted',
+    payload: { title: excerpt(item.content) },
+  });
 }
 
 /** 默认标题：取内容的第一行。 */
@@ -85,6 +106,12 @@ export function promoteInboxItem(db: Conn, id: number, input: PromoteInboxInput)
       .where(eq(inboxItems.id, id))
       .returning()
       .get();
+    logActivity(tx, {
+      entityType: 'inbox_item',
+      entityId: id,
+      action: 'promoted',
+      payload: { title: excerpt(item.content), promotedType: created.type, promotedId: created.id },
+    });
     return { item: updated, created };
   });
 }
