@@ -1,6 +1,6 @@
 {
   "name": "@researchpilot/desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "科研小助理桌面应用",
   "main": "dist/main.cjs",
