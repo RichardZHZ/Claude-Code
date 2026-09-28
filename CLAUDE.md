@@ -7,6 +7,7 @@
 - `pnpm install`：安装依赖（pnpm workspaces + Turborepo）
 - `pnpm dev`：同时启动 API（127.0.0.1:8787）与前端（localhost:5173，/api 代理到 API）
 - `pnpm start`：构建前端后由 API 在 8787 同时托管页面和接口（日常使用）；`docker compose up -d --build` 效果相同
+- `pnpm desktop`：开发版桌面窗口；`pnpm desktop:package --mac --arch arm64,x64`：打包 .dmg（GitHub Actions 的 `desktop.yml` 在 macOS 上自动打包）
 - `pnpm db:backup [--list]`、`pnpm db:restore <文件>`：备份与恢复，详见 `docs/DEPLOY.md`
 - `pnpm check`：lint + prettier + typecheck + test，提交前必须通过
 - `pnpm e2e`：Playwright 端到端测试，自带临时数据库、假 Zotero 和独立端口（API 8799、前端 5199、Zotero 23199）。云环境里用 `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium pnpm e2e`
@@ -20,16 +21,18 @@
   - `contracts.ts` 前后端共享的 zod 输入校验和 JSON 返回类型（`Wire<T>` 把 Date 转成字符串）。
   - `types.ts` 服务层返回的视图类型；`errors.ts` 的 `DomainError` 由 API 映射为 400/404。
   - `services/` 按领域划分：tasks、themes、projects、milestones、map、owners、plans、inbox、activity、health、reviews、calendar、resources、drafts。函数第一个参数是 `Conn`（连接或事务）。
-  - `backup.ts` 备份、清理、定时备份、迁移前备份（`migrateWithBackup`）和恢复；`config.ts` 的 `resolveBackupConfig` 读取 `BACKUP_*` 环境变量。
+  - `backup.ts` 备份、清理、定时备份、迁移前备份（`migrateWithBackup`）和恢复。
+  - `config.ts` 数据目录（默认按系统放在用户数据目录，`DB_PATH` 可覆盖）、`BACKUP_*` 和 `MIGRATIONS_DIR` 环境变量；可从 `/config` 单独导入，不会带上数据库依赖。
   - `zotero.ts` Zotero 本地 API 只读客户端（可注入 `fetch`）；`testing/fake-zotero.ts` 是测试用的假 Zotero。
   - `services/drafts.ts` 周计划、日计划、周复盘草稿：确定性打分并写出理由，供 MCP 和 Claude 润色。
   - `rules/health.ts` 健康检查的纯函数规则与阈值；`services/health.ts` 负责从数据库组装快照。
-  - 入口：`@researchpilot/core`（服务端）、`/contracts`、`/enums`、`/week`、`/health-rules`（前端可用）、`/testing`（仅测试）。
+  - 入口：`@researchpilot/core`（服务端）、`/config`（桌面主进程）、`/contracts`、`/enums`、`/week`、`/health-rules`（前端可用）、`/testing`（仅测试）。
 - `apps/api`：Hono，只做路由、参数校验（`validate.ts`）和序列化，调用 core。路由按领域放在 `src/routes/`。`createApp({ db, today, zotero, backup })` 可注入依赖，测试用 `app.request()`。`src/server.ts` 负责打开数据库、迁移、定时备份和监听；`src/index.ts` 是开发入口（只有 /api），`src/serve.ts` 是正式入口（`web.ts` 托管 `apps/web/dist`）。
 - `apps/web`：React 19 + Vite + Tailwind v4 + shadcn/ui（new-york 风格）+ TanStack Router（代码式路由，`src/router.tsx`）+ TanStack Query。路径别名 `@/` 指向 `src/`。
   - `src/pages/` 七个页面（今日、本周、议题地图、课题、收件箱、提醒、回顾）；`src/components/tasks/` 任务相关的复用组件；`src/lib/queries.ts` 查询与写操作（`useAction` 成功后刷新全部数据并弹提示）。
 - `apps/mcp`：stdio MCP 服务器（`@modelcontextprotocol/sdk`），只调用 core。`src/server.ts` 注册 `rp_` 前缀的工具和三个提示，`src/format.ts` 输出给 Claude 看的 Markdown；`bin/researchpilot-mcp.mjs` 用 tsx 直接运行源码，根目录 `.mcp.json` 已登记。stdio 下标准输出只能传协议消息，日志写 stderr。测试用 SDK 的 `InMemoryTransport`。
-- API、web、mcp 都不直接依赖 drizzle-orm。
+- `apps/desktop`：Electron 桌面应用。`src/main.ts` 主进程：选端口（优先 8787）、以子进程运行打包好的服务（打包后用 `ELECTRON_RUN_AS_NODE`，开发时用系统 node）、打开窗口、外部链接交给系统、菜单里可复制 MCP 登记命令。`scripts/bundle.mjs` 用 esbuild 把主进程、`apps/api/src/serve.ts`、`apps/mcp/src/index.ts` 各打成一个文件；`scripts/package.mjs` 整理到 `.stage/` 再交给 electron-builder（`builder.config.cjs`）。better-sqlite3 用自带的 N-API 预编译文件，不为 Electron 重新编译。
+- API、web、mcp、desktop 都不直接依赖 drizzle-orm。
 
 ## 约定
 
@@ -48,6 +51,8 @@
 - 表结构变更：改 `schema.ts` → `pnpm db:generate --name <描述>` → 提交生成的 `packages/core/drizzle/` 文件。不要手改已提交的迁移。
 - 程序入口（API、MCP、`db:migrate`）用 `migrateWithBackup` 升级数据库，先备份再迁移；`runMigrations` 只在测试和新建数据库时直接用。
 - Docker 镜像只包含 API、core 和前端构建产物。新增运行时需要的包放进 `dependencies`，并确认 `docker build .` 仍能通过。
+- 服务端和 MCP 代码会被 esbuild 打进桌面应用：不要依赖运行时相对 `import.meta.url` 找文件（用环境变量传路径），新增原生模块要确认有 Electron 可用的预编译文件。
+- 开发时想和日常数据分开，给 `pnpm dev` 设 `DB_PATH`（例如 `DB_PATH=$PWD/data/dev.db pnpm dev`，要用绝对路径，因为各子任务在自己的目录里运行）。
 - TypeScript 锁定 6.0.x，因为 typescript-eslint 尚不支持 7.x。
 - shadcn 组件在 `apps/web/src/components/ui/`。可以用 `pnpm dlx shadcn@latest add <组件>` 添加，也可以手动复制官方源码。
 - 端到端测试用 `data-testid`、可访问名称（aria-label）定位元素；改界面文字时同步更新 `e2e/`。

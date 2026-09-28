@@ -1,8 +1,25 @@
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { homedir } from 'node:os';
+import { dirname, join, posix, win32 } from 'node:path';
 
-/** 默认数据库位置：仓库根目录下的 data/researchpilot.db。可用环境变量 DB_PATH 覆盖。 */
-export const DEFAULT_DB_PATH = fileURLToPath(new URL('../../../data/researchpilot.db', import.meta.url));
+/**
+ * 每个用户自己的数据目录。网页服务、桌面应用和 MCP 服务器默认都用这里，数据只有一份。
+ * macOS：~/Library/Application Support/ResearchPilot
+ * Windows：%APPDATA%\ResearchPilot
+ * Linux：$XDG_DATA_HOME/researchpilot，默认 ~/.local/share/researchpilot
+ */
+export function defaultDataDir(
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+  home: string = homedir(),
+): string {
+  if (platform === 'darwin') return posix.join(home, 'Library', 'Application Support', 'ResearchPilot');
+  if (platform === 'win32')
+    return win32.join(env.APPDATA ?? win32.join(home, 'AppData', 'Roaming'), 'ResearchPilot');
+  return posix.join(env.XDG_DATA_HOME || posix.join(home, '.local', 'share'), 'researchpilot');
+}
+
+/** 默认数据库位置：数据目录下的 researchpilot.db。可用环境变量 DB_PATH 覆盖。 */
+export const DEFAULT_DB_PATH = join(defaultDataDir(), 'researchpilot.db');
 
 export function resolveDbPath(): string {
   return process.env.DB_PATH ?? DEFAULT_DB_PATH;

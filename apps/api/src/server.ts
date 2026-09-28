@@ -22,7 +22,8 @@ export async function startServer({ webDist }: ServerOptions = {}) {
   const preMigration = await migrateWithBackup(db, backup.dir);
   if (preMigration) console.log(`升级表结构前已备份：${preMigration.path}`);
 
-  const api = createApp({ db, backup, log: true });
+  // 桌面应用把输出写进日志文件，设 LOG_REQUESTS=off 不逐条记录请求。
+  const api = createApp({ db, backup, log: process.env.LOG_REQUESTS !== 'off' });
   const app = webDist ? withWeb(api, webDist) : api;
   const scheduler = startBackupScheduler(db, backup, (m) => console.log(m));
 

@@ -11,6 +11,7 @@ export { runMigrations, MIGRATIONS_DIR } from './migrate.ts';
 export {
   resolveDbPath,
   DEFAULT_DB_PATH,
+  defaultDataDir,
   resolveZoteroUrl,
   DEFAULT_ZOTERO_URL,
   resolveBackupConfig,
