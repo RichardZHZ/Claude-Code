@@ -29,6 +29,13 @@
       "when": 1790604133822,
       "tag": "0003_countdown_and_drop_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790608015519,
+      "tag": "0004_focus_sessions",
+      "breakpoints": true
     }
   ]
 }

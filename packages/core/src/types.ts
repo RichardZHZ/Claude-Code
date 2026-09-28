@@ -1,7 +1,16 @@
 // 服务层返回的"视图"类型。只依赖 schema.ts 的类型，不引入数据库连接，
 // 因此前端也可以通过 contracts.ts 安全地引用（经 Wire<> 转成 JSON 形态）。
 
-import type { ActivityLogEntry, InboxItem, Milestone, Project, Resource, Task, Theme } from './schema.ts';
+import type {
+  ActivityLogEntry,
+  FocusSession,
+  InboxItem,
+  Milestone,
+  Project,
+  Resource,
+  Task,
+  Theme,
+} from './schema.ts';
 import type { BackupReason } from './enums.ts';
 import type { HealthIssue, HealthSeverity } from './rules/health.ts';
 
@@ -180,4 +189,69 @@ export type Countdown = {
   status: Theme['status'];
   /** 截止时刻。 */
   at: Date;
+};
+
+// ---------- 专心致志 ----------
+
+/** 一段专注，附带议题标题和时长（进行中的按服务端当前时刻计算，前端再按秒更新）。 */
+export type FocusSessionView = FocusSession & {
+  themeTitle: string;
+  durationMs: number;
+};
+
+/** 某个议题的专注时间合计（只算已经结束的段落）。 */
+export type FocusThemeTotal = {
+  themeId: number;
+  title: string;
+  status: Theme['status'];
+  todayMs: number;
+  weekMs: number;
+  totalMs: number;
+  /** 已结束的段数。 */
+  sessions: number;
+};
+
+export type FocusState = {
+  today: string;
+  weekKey: string;
+  /** 正在进行的一段；没有则为 null。 */
+  running: FocusSessionView | null;
+  /** 今天、本周已结束的专注合计（不含进行中的一段）。 */
+  todayMs: number;
+  weekMs: number;
+  /** 所有未结束议题的合计，另加结束了但有专注记录的议题。 */
+  themes: FocusThemeTotal[];
+  /** 今天开始的各段，新的在前。 */
+  todaySessions: FocusSessionView[];
+};
+
+// ---------- 回顾 ----------
+
+export type RecapFocusByTheme = { themeId: number; title: string; ms: number; sessions: number };
+
+/** 某一天做了什么：完成的任务、当天最重要的事、排在当天没做完的任务、专注时间。 */
+export type RecapDay = {
+  date: string;
+  /** 当天最重要的事（按设定顺序，含当前状态）。 */
+  topTasks: TaskView[];
+  /** 当天完成的任务（按完成时刻）。 */
+  completed: TaskView[];
+  /** 排在当天、至今没完成的任务。 */
+  unfinished: TaskView[];
+  focusMs: number;
+  focusByTheme: RecapFocusByTheme[];
+  focusSessions: FocusSessionView[];
+};
+
+export type WeekRecap = {
+  weekKey: string;
+  start: string;
+  end: string;
+  prevWeek: string;
+  nextWeek: string;
+  /** 周一到周日。 */
+  days: RecapDay[];
+  completedCount: number;
+  focusMs: number;
+  focusByTheme: RecapFocusByTheme[];
 };

@@ -3,6 +3,8 @@
 
 import { z } from 'zod';
 import {
+  FOCUS_MODES,
+  MAX_FOCUS_TIMER_MINUTES,
   MAX_TOP_TASKS,
   MAX_WEEK_FOCUS,
   PROJECT_KINDS,
@@ -143,6 +145,31 @@ export type DayPlanInput = z.infer<typeof dayPlanInput>;
 export const dateParam = date;
 export const weekKeyParam = weekKey;
 
+// ---------- 专心致志 ----------
+
+export const startFocusInput = z
+  .object({
+    themeId: id,
+    mode: z.enum(FOCUS_MODES),
+    /** 倒计时的分钟数；正计时不传。 */
+    plannedMinutes: z
+      .number()
+      .int('分钟数应为整数')
+      .min(1, '至少 1 分钟')
+      .max(MAX_FOCUS_TIMER_MINUTES, `最长 ${MAX_FOCUS_TIMER_MINUTES} 分钟`)
+      .optional(),
+  })
+  .refine((v) => v.mode !== 'timer' || v.plannedMinutes !== undefined, {
+    message: '倒计时需要设定分钟数',
+    path: ['plannedMinutes'],
+  })
+  .transform((v) => (v.mode === 'stopwatch' ? { ...v, plannedMinutes: undefined } : v));
+/** 结束专注：可以带上要结束的那一段的 id，它若已经自动结束，就直接返回，不报错。 */
+export const stopFocusInput = z.object({ id: id.optional() });
+export const focusQuery = z.object({ today: date.optional() });
+export type StartFocusInput = z.infer<typeof startFocusInput>;
+export type StopFocusInput = z.infer<typeof stopFocusInput>;
+
 // ---------- 收件箱 ----------
 
 export const createInboxInput = z.object({
@@ -258,5 +285,11 @@ export type DraftTaskDto = Wire<V.DraftTask>;
 export type WeekPlanDraftDto = Wire<V.WeekPlanDraft>;
 export type DayPlanDraftDto = Wire<V.DayPlanDraft>;
 export type CountdownDto = Wire<V.Countdown>;
+export type FocusSessionDto = Wire<V.FocusSessionView>;
+export type FocusThemeTotalDto = V.FocusThemeTotal;
+export type FocusStateDto = Wire<V.FocusState>;
+export type RecapDayDto = Wire<V.RecapDay>;
+export type RecapFocusByThemeDto = V.RecapFocusByTheme;
+export type WeekRecapDto = Wire<V.WeekRecap>;
 export type BackupInfoDto = Wire<V.BackupInfo>;
 export type BackupStatusDto = Wire<V.BackupStatus>;

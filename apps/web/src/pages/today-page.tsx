@@ -13,6 +13,7 @@ import { MAX_TOP_TASKS } from '@researchpilot/core/enums';
 import type { DayViewDto, TaskViewDto } from '@researchpilot/core/contracts';
 import { EmptyHint, PageHeader, QueryView, Section } from '@/components/common';
 import { CountdownCard } from '@/components/countdown/countdown-card';
+import { FocusTimerCard } from '@/components/focus/focus-panel';
 import { TaskItem, TaskList } from '@/components/tasks/task-item';
 import { TaskQuickAdd } from '@/components/tasks/task-quick-add';
 import { Button } from '@/components/ui/button';
@@ -256,6 +257,7 @@ function DayContent({ data }: { data: DayViewDto }) {
 
       <div className="flex flex-col gap-6">
         <CountdownCard />
+        <FocusTimerCard today={todayString()} />
       </div>
     </div>
   );

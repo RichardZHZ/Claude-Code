@@ -49,9 +49,15 @@
 }
 
 @theme inline {
+  /*
+   * 西文用 Garamond（内置 EB Garamond），中文用仿宋（内置朱雀仿宋）。
+   * EB Garamond 没有汉字，汉字会自动落到后面的仿宋字体；两款字体都随应用打包，不依赖系统是否安装。
+   * 系统里的仿宋（华文仿宋、Windows 的仿宋）作为后备。
+   */
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
-    'Noto Sans CJK SC', sans-serif;
+    'EB Garamond', Garamond, 'Zhuque Fangsong (technical preview)', STFangsong, FangSong, 'FangSong_GB2312',
+    serif;
+  --font-serif: var(--font-sans);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -83,6 +89,8 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    /* Garamond 默认是高低错落的旧式数字，计时和日期改用等高数字，更容易读。 */
+    font-feature-settings: 'lnum' 1;
   }
 }
 

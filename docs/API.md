@@ -27,6 +27,18 @@
 
 新建或修改议题时可以传 `countdownAt`：ISO 8601 时刻并带时区，例如 `"2027-06-30T18:00:15+08:00"`；传 `null` 取消倒计时。剩余时间由前端按秒计算，接口只存截止时刻。
 
+## 专心致志与回顾
+
+| 方法 | 路径 | 作用 |
+| --- | --- | --- |
+| GET | `/focus?today=YYYY-MM-DD` | 专注状态：进行中的一段 `running`、今天和本周的合计 `todayMs` / `weekMs`、各议题的 `todayMs` / `weekMs` / `totalMs` / `sessions`、今天的各段 `todaySessions`。合计只算已结束的段 |
+| POST | `/focus/start` | 开始专注 `{ themeId, mode: "stopwatch" \| "timer", plannedMinutes? }`；倒计时必须带 `plannedMinutes`（1–600）。已有进行中的一段时返回 400 |
+| POST | `/focus/stop` | 结束进行中的一段并存档 `{ id? }`。带上 id 时，若那一段已经自动结束，直接返回它 |
+| DELETE | `/focus/sessions/:id` | 删除一段记录；删除进行中的一段等于放弃，不存档 |
+| GET | `/recap/:weekKey` | 一周回顾：`days[]`（周一到周日，每天的 `topTasks`、`completed`、`unfinished`、`focusMs`、`focusByTheme`、`focusSessions`），以及整周的 `completedCount`、`focusMs`、`focusByTheme` |
+
+倒计时到点不依赖页面：每次读写专注状态或回顾之前，服务端先把已经到点的倒计时补上结束时刻（取设定的到点时刻）。时长单位都是毫秒。
+
 ## 课题与里程碑
 
 | 方法 | 路径 | 作用 |

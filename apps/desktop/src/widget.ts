@@ -1,4 +1,4 @@
-// 桌面小窗：一个无边框的小窗口，显示网页的 /widget 页面（今天最重要的事）。
+// 桌面小窗：一个无边框的小窗口，显示网页的 /widget 页面（倒计时、专心致志、提醒、今天最重要的事）。
 // macOS 上默认放在"普通窗口之下、桌面图标之上"的层级：像贴在桌面上，不会挡住其他窗口，但仍然可以点。
 // 也可以固定在最上层，像便利贴一样浮在所有窗口上面。
 
@@ -11,11 +11,16 @@ export type WidgetState = {
   /** 固定在所有窗口上面。 */
   pinned: boolean;
   bounds?: Rectangle;
+  /** 小窗内容的版本。内容变多时加一，旧版本存下的尺寸会被放大到新的默认高度。 */
+  layout?: number;
 };
 
-const DEFAULT_STATE: WidgetState = { visible: true, pinned: false };
-/** 顶部倒计时加上三五件事的高度。 */
-const DEFAULT_SIZE = { width: 300, height: 340 };
+const LAYOUT_VERSION = 2;
+const DEFAULT_STATE: WidgetState = { visible: true, pinned: false, layout: LAYOUT_VERSION };
+/** 倒计时、专心致志、提醒和三五件事的高度。 */
+const DEFAULT_SIZE = { width: 320, height: 620 };
+/** 页面标题含有这个词时，说明小窗里有需要用户看到的提醒。 */
+const ATTENTION_MARK = '提醒';
 const MARGIN = 24;
 
 export type WidgetOptions = {
@@ -33,6 +38,8 @@ export class DesktopWidget {
   private state: WidgetState;
   private readonly stateFile = join(app.getPath('userData'), 'desktop-widget.json');
   private saveTimer: NodeJS.Timeout | undefined;
+  /** 小窗里是否有需要用户看到的提醒（此时临时放在最上层）。 */
+  private attention = false;
 
   constructor(private readonly options: WidgetOptions) {
     this.state = this.load();
@@ -79,7 +86,7 @@ export class DesktopWidget {
       minWidth: 240,
       minHeight: 200,
       maxWidth: 560,
-      maxHeight: 720,
+      maxHeight: 1000,
       title: '科研小助理 · 今天',
       frame: false,
       transparent: true,
@@ -111,6 +118,22 @@ export class DesktopWidget {
     });
     win.webContents.on('context-menu', () => this.contextMenu().popup({ window: win }));
 
+    // 专注满两小时、倒计时结束时，页面把标题改成"…提醒"：临时把小窗提到最上层（不抢焦点），
+    // 用户点"知道了"或结束计时后，标题复原，小窗回到原来的层级。
+    win.on('page-title-updated', (event, title) => {
+      event.preventDefault();
+      const attention = title.includes(ATTENTION_MARK);
+      if (attention === this.attention) return;
+      this.attention = attention;
+      if (attention && this.state.visible) {
+        win.setAlwaysOnTop(true, 'floating');
+        win.showInactive();
+        if (process.platform === 'darwin') app.dock?.bounce('informational');
+      } else {
+        this.applyLevel(win);
+      }
+    });
+
     const remember = () => {
       clearTimeout(this.saveTimer);
       this.saveTimer = setTimeout(() => {
@@ -130,7 +153,7 @@ export class DesktopWidget {
 
   /** macOS：不固定时放在普通窗口下面一层（桌面图标之上）；其他系统没有这一层，就当普通窗口。 */
   private applyLevel(win: BrowserWindow) {
-    if (this.state.pinned) win.setAlwaysOnTop(true, 'floating');
+    if (this.state.pinned || this.attention) win.setAlwaysOnTop(true, 'floating');
     else if (process.platform === 'darwin') win.setAlwaysOnTop(true, 'normal', -1);
     else win.setAlwaysOnTop(false);
   }
@@ -154,7 +177,20 @@ export class DesktopWidget {
 
   /** 上次的位置还在某块屏幕上就沿用，否则放在主屏幕右上角。 */
   private initialBounds(): Rectangle {
-    const saved = this.state.bounds;
+    let saved = this.state.bounds;
+    if (saved && (this.state.layout ?? 1) < LAYOUT_VERSION) {
+      // 旧版本的小窗内容少、窗口矮：放大到新的默认尺寸，但不超出屏幕。
+      const area = screen.getDisplayMatching(saved).workArea;
+      saved = {
+        ...saved,
+        width: Math.max(saved.width, DEFAULT_SIZE.width),
+        height: Math.max(
+          saved.height,
+          Math.min(DEFAULT_SIZE.height, area.y + area.height - saved.y - MARGIN),
+        ),
+      };
+      this.update({ bounds: saved, layout: LAYOUT_VERSION }, false);
+    }
     if (saved) {
       const area = screen.getDisplayMatching(saved).workArea;
       const visible =
@@ -166,7 +202,8 @@ export class DesktopWidget {
     }
     const area = screen.getPrimaryDisplay().workArea;
     return {
-      ...DEFAULT_SIZE,
+      width: DEFAULT_SIZE.width,
+      height: Math.min(DEFAULT_SIZE.height, area.height - 2 * MARGIN),
       x: area.x + area.width - DEFAULT_SIZE.width - MARGIN,
       y: area.y + MARGIN,
     };

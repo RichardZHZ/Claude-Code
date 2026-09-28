@@ -20,19 +20,20 @@
   - `schema.ts` 表结构；`enums.ts` 状态取值与中文名；`week.ts` 日期与 ISO 周工具。
   - `contracts.ts` 前后端共享的 zod 输入校验和 JSON 返回类型（`Wire<T>` 把 Date 转成字符串）。
   - `types.ts` 服务层返回的视图类型；`errors.ts` 的 `DomainError` 由 API 映射为 400/404。
-  - `services/` 按领域划分：tasks、themes（含倒计时 `listCountdowns`）、projects、milestones、map、owners、plans、inbox、activity、health、calendar、resources、drafts。函数第一个参数是 `Conn`（连接或事务）。
+  - `services/` 按领域划分：tasks、themes（含倒计时 `listCountdowns`）、projects、milestones、map、owners、plans、inbox、activity、health、calendar、resources、drafts、focus（专心致志）、recap（回顾）。函数第一个参数是 `Conn`（连接或事务）。
   - `backup.ts` 备份、清理、定时备份、迁移前备份（`migrateWithBackup`）和恢复。
   - `config.ts` 数据目录（默认按系统放在用户数据目录，`DB_PATH` 可覆盖）、`BACKUP_*` 和 `MIGRATIONS_DIR` 环境变量；可从 `/config` 单独导入，不会带上数据库依赖。
   - `zotero.ts` Zotero 本地 API 只读客户端（可注入 `fetch`）；`testing/fake-zotero.ts` 是测试用的假 Zotero。
   - `services/drafts.ts` 周计划、日计划草稿：确定性打分并写出理由，供 MCP 和 Claude 润色。
   - `countdown.ts` 倒计时的天/时/分/秒拆分和中文描述，纯函数，前端（`/countdown`）和 MCP 共用。
+  - `focus.ts` 专心致志的计时计算（已进行、剩余、两小时提醒次数、时长的中文说法），纯函数，前端（`/focus`）、服务层和 MCP 共用。
   - `rules/health.ts` 健康检查的纯函数规则与阈值；`services/health.ts` 负责从数据库组装快照。
-  - 入口：`@researchpilot/core`（服务端）、`/config`（桌面主进程）、`/contracts`、`/enums`、`/week`、`/countdown`、`/health-rules`（前端可用）、`/testing`（仅测试）。
+  - 入口：`@researchpilot/core`（服务端）、`/config`（桌面主进程）、`/contracts`、`/enums`、`/week`、`/countdown`、`/focus`、`/health-rules`（前端可用）、`/testing`（仅测试）。
 - `apps/api`：Hono，只做路由、参数校验（`validate.ts`）和序列化，调用 core。路由按领域放在 `src/routes/`。`createApp({ db, today, zotero, backup })` 可注入依赖，测试用 `app.request()`。`src/server.ts` 负责打开数据库、迁移、定时备份和监听；`src/index.ts` 是开发入口（只有 /api），`src/serve.ts` 是正式入口（`web.ts` 托管 `apps/web/dist`）。
 - `apps/web`：React 19 + Vite + Tailwind v4 + shadcn/ui（new-york 风格）+ TanStack Router（代码式路由，`src/router.tsx`）+ TanStack Query。路径别名 `@/` 指向 `src/`。
-  - `src/pages/` 六个页面（今日、本周、议题地图、课题、收件箱、提醒），另有给桌面小窗用的 `/widget`（不带侧栏，由 `RootLayout` 区分）；`src/components/countdown/` 是按秒跳动的倒计时（今日页、本周页侧栏、议题卡片、小窗共用）；`src/components/tasks/` 任务相关的复用组件；`src/lib/queries.ts` 查询与写操作（`useAction` 成功后刷新全部数据并弹提示）。
+  - `src/pages/` 七个页面（今日、本周、议题地图、课题、收件箱、提醒、回顾），另有给桌面小窗用的 `/widget`（不带侧栏，由 `RootLayout` 区分）；`src/components/countdown/` 是按秒跳动的倒计时（今日页、本周页侧栏、议题卡片、小窗共用）；`src/components/focus/` 是专心致志（`use-focus-controller.ts` 放状态与操作，卡片和小窗共用）；`src/components/tasks/` 任务相关的复用组件；`src/lib/queries.ts` 查询与写操作（`useAction` 成功后刷新全部数据并弹提示）。
 - `apps/mcp`：stdio MCP 服务器（`@modelcontextprotocol/sdk`），只调用 core。`src/server.ts` 注册 `rp_` 前缀的工具和两个提示（plan_week、plan_day），`src/format.ts` 输出给 Claude 看的 Markdown；`bin/researchpilot-mcp.mjs` 用 tsx 直接运行源码，根目录 `.mcp.json` 已登记。stdio 下标准输出只能传协议消息，日志写 stderr。测试用 SDK 的 `InMemoryTransport`。
-- `apps/desktop`：Electron 桌面应用。`src/main.ts` 主进程：选端口（优先 8787）、以子进程运行打包好的服务（打包后用 `ELECTRON_RUN_AS_NODE`，开发时用系统 node）、打开窗口、外部链接交给系统、菜单里可复制 MCP 登记命令、开关桌面小窗和开机自启。`src/widget.ts` 是桌面小窗：无边框透明窗口加载网页的 `/widget` 页面，位置和开关状态存在 userData 里。`scripts/bundle.mjs` 用 esbuild 把主进程、`apps/api/src/serve.ts`、`apps/mcp/src/index.ts` 各打成一个文件；`scripts/package.mjs` 整理到 `.stage/` 再交给 electron-builder（`builder.config.cjs`）。better-sqlite3 用自带的 N-API 预编译文件，不为 Electron 重新编译。
+- `apps/desktop`：Electron 桌面应用。`src/main.ts` 主进程：选端口（优先 8787）、以子进程运行打包好的服务（打包后用 `ELECTRON_RUN_AS_NODE`，开发时用系统 node）、打开窗口、外部链接交给系统、菜单里可复制 MCP 登记命令、开关桌面小窗和开机自启。`src/widget.ts` 是桌面小窗：无边框透明窗口加载网页的 `/widget` 页面，位置和开关状态存在 userData 里；页面标题含"提醒"时临时提到最上层（专注满两小时、倒计时结束）。`scripts/bundle.mjs` 用 esbuild 把主进程、`apps/api/src/serve.ts`、`apps/mcp/src/index.ts` 各打成一个文件；`scripts/package.mjs` 整理到 `.stage/` 再交给 electron-builder（`builder.config.cjs`）。better-sqlite3 用自带的 N-API 预编译文件，不为 Electron 重新编译。
 - API、web、mcp、desktop 都不直接依赖 drizzle-orm。
 
 ## 约定
@@ -45,6 +46,9 @@
 - 服务层每个写操作都要调用 `logActivity`（`services/activity.ts`），带上 `projectId` / `themeId` 上下文和 `payload.title`；没有实际变化时不记。新增动作要同时更新 `describeActivity` 的中文说明和 `enums.ts` 的 `ACTIVITY_ACTIONS`。
 - 工作日志、日复盘、周复盘已按用户要求移除（0.3.0），不要再加回来。活动日志里旧的 `journaled` / `reviewed` 记录保留，`describeActivity` 仍能描述。
 - 倒计时的截止时刻存毫秒时间戳（`themes.countdown_at`），剩余时间只在显示时用 `countdown.ts` 计算，不存库。
+- 专心致志（`focus_sessions`）同一时间最多进行一段；倒计时到点由服务层 `settleFocus` 在读写前补上结束时刻，不依赖页面。时长只在读取时计算。计时的开始和结束只在应用里操作，MCP 只读。
+- 回顾页（0.4.0 恢复）只展示已有数据（任务、日计划、专注记录），不写复盘，不新增存储。
+- 字体：中文仿宋（内置朱雀仿宋）、西文 Garamond（内置 EB Garamond），在 `apps/web/src/main.tsx` 导入、`index.css` 的 `--font-sans` 设定。新增字体要确认许可证允许随应用分发，并补进 `apps/web/public/licenses/fonts.txt`。
 - `resources` 是多态关联，没有外键：删除议题、课题、任务的服务函数要调用 `pruneOrphanResources`。
 - MCP 写入工具要复用 contracts 里的 zod 校验；工具描述和服务器说明要求 Claude 写入前先征得用户确认，新增写入工具时保持这一点。
 - `pnpm dev` 经 Turborepo 启动，需要传给子任务的环境变量必须列在 `turbo.json` 的 `passThroughEnv` 里。

@@ -1,6 +1,15 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Outlet, useRouterState } from '@tanstack/react-router';
-import { Bell, CalendarDays, CalendarRange, DatabaseBackup, Inbox, Network, Send } from 'lucide-react';
+import {
+  Bell,
+  CalendarDays,
+  CalendarRange,
+  DatabaseBackup,
+  History,
+  Inbox,
+  Network,
+  Send,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +24,7 @@ const NAV = [
   { to: '/map', label: '议题地图', icon: Network },
   { to: '/inbox', label: '收件箱', icon: Inbox },
   { to: '/checks', label: '提醒', icon: Bell },
+  { to: '/review', label: '回顾', icon: History },
 ] as const;
 
 /** 根布局：桌面小窗（/widget）不要侧栏和导航，其余页面都放在应用外框里。 */

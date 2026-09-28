@@ -96,10 +96,9 @@ test('议题倒计时：在议题里设定，今日、本周、议题地图和�
   await expect(page.getByTestId('day-review')).toHaveCount(0);
 
   // 本周页：同样的倒计时，周复盘已经移除
-  await page.getByRole('link', { name: '本周' }).click();
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '本周' }).click();
   await expect(page.getByTestId('countdown-card')).toContainText('城市绿地');
   await expect(page.getByTestId('week-review')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: '回顾' })).toHaveCount(0);
 
   // 桌面小窗顶部
   await page.goto('/widget');

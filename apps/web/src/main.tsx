@@ -4,6 +4,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { Toaster } from '@/components/ui/sonner';
 import { router } from './router';
+// 字体随应用打包：西文 EB Garamond，中文朱雀仿宋（按字符分片，用到哪些字才加载哪些）。
+import '@fontsource/eb-garamond/400.css';
+import '@fontsource/eb-garamond/500.css';
+import '@fontsource/eb-garamond/600.css';
+import '@fontsource/eb-garamond/700.css';
+import '@chinese-fonts/zqfs/dist/ZhuqueFangsong-Regular/result.css';
 import './index.css';
 
 // 跟随系统的浅色或深色模式。
