@@ -2,17 +2,23 @@
 // 约定：每个对象都带上 #编号，方便 Claude 在写入工具里引用。
 
 import {
+  FOCUS_MODE_LABELS,
   PROJECT_KIND_LABELS,
   PROJECT_STATUS_LABELS,
   TASK_STATUS_LABELS,
   THEME_STATUS_LABELS,
   describeCountdown,
+  focusElapsedMs,
+  focusRemainingMs,
+  formatFocusDuration,
   weekdayOf,
   type ActivityView,
   type Countdown,
   type DayPlanDraft,
   type DayView,
   type DraftTask,
+  type FocusState,
+  type RecapFocusByTheme,
   type HealthIssue,
   type InboxList,
   type MilestoneDue,
@@ -21,6 +27,7 @@ import {
   type TaskView,
   type ThemeMap,
   type WeekPlanDraft,
+  type WeekRecap,
   type WeekView,
   type ZoteroItem,
 } from '@researchpilot/core';
@@ -199,6 +206,59 @@ export function formatCountdowns(list: Countdown[], now: Date): string {
   return list
     .map((c) => `- 议题 #${c.themeId} ${c.title}：${dateTime(c.at)} 截止，${describeCountdown(c.at, now)}`)
     .join('\n');
+}
+
+// ---------- 专心致志与回顾 ----------
+
+const dur = formatFocusDuration;
+
+function focusByTheme(list: RecapFocusByTheme[]): string {
+  return list.map((f) => `议题 #${f.themeId} ${f.title} ${dur(f.ms)}`).join('；');
+}
+
+export function formatFocusState(s: FocusState, now: Date): string {
+  const out: string[] = [];
+  if (s.running) {
+    const r = s.running;
+    const left = focusRemainingMs(r, now);
+    const timing =
+      left === null
+        ? `已进行 ${dur(focusElapsedMs(r, now))}`
+        : `设定 ${r.plannedMinutes} 分钟，还剩 ${dur(left)}`;
+    out.push(`- 进行中：议题 #${r.themeId} ${r.themeTitle}（${FOCUS_MODE_LABELS[r.mode]}，${timing}）`);
+  } else {
+    out.push('- 现在没有进行中的专注');
+  }
+  out.push(`- 今天 ${dur(s.todayMs)}，本周 ${dur(s.weekMs)}（不含进行中的一段）`);
+  for (const t of s.themes.filter((t) => t.sessions > 0)) {
+    out.push(
+      `- 议题 #${t.themeId} ${t.title}：今天 ${dur(t.todayMs)}，本周 ${dur(t.weekMs)}，累计 ${dur(t.totalMs)}（${t.sessions} 段）`,
+    );
+  }
+  return out.join('\n');
+}
+
+export function formatRecap(r: WeekRecap): string {
+  const out = [
+    `# 回顾 ${r.weekKey}（${md(r.start)} – ${md(r.end)}）`,
+    `完成任务 ${r.completedCount} 项，专注 ${dur(r.focusMs)}`,
+  ];
+  if (r.focusByTheme.length) out.push(`按议题：${focusByTheme(r.focusByTheme)}`);
+  for (const d of r.days) {
+    if (!d.topTasks.length && !d.completed.length && !d.unfinished.length && !d.focusMs) continue;
+    out.push(`\n## ${mdw(d.date)}`);
+    if (d.topTasks.length)
+      out.push(`最重要的事：\n${d.topTasks.map((t) => taskLine(t, { schedule: false })).join('\n')}`);
+    if (d.completed.length)
+      out.push(`完成：\n${d.completed.map((t) => taskLine(t, { schedule: false })).join('\n')}`);
+    if (d.unfinished.length)
+      out.push(
+        `排在这天、还没做完：\n${d.unfinished.map((t) => taskLine(t, { schedule: false })).join('\n')}`,
+      );
+    if (d.focusMs) out.push(`专注 ${dur(d.focusMs)}：${focusByTheme(d.focusByTheme)}`);
+  }
+  if (out.length === (r.focusByTheme.length ? 3 : 2)) out.push('\n这一周还没有记录。');
+  return out.join('\n');
 }
 
 const SEVERITY = { danger: '紧急', warning: '注意', info: '提示' } as const;

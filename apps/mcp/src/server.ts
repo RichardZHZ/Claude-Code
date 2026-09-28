@@ -10,10 +10,12 @@ import {
   draftDayPlan,
   draftWeekPlan,
   getDayView,
+  getFocusState,
   getHealthReport,
   getProjectDetail,
   getThemeMap,
   getWeekView,
+  getWeekRecap,
   isoWeekKey,
   linkZoteroItem,
   listActivity,
@@ -60,6 +62,7 @@ export type ServerOptions = {
 export const SERVER_INSTRUCTIONS = `科研小助理（ResearchPilot）：用户本地的科研管理工具。
 结构：研究议题（长期方向）→ 课题（论文、基金等有交付物的工作）→ 里程碑 → 任务；任务再被排进周计划和日计划。
 议题可以设一个倒计时截止时刻（例如毕业、基金截止），rp_get_overview 会列出剩余时间。
+用户在应用里用"专心致志"给议题计时（正计时或倒计时），rp_get_focus 看专注时间，rp_get_recap 按天回顾一周做了什么。
 所有对象都用 #编号 引用，例如 课题 #3、任务 #12。
 
 使用原则：
@@ -167,7 +170,7 @@ export function createServer({
     {
       title: '今天的概览',
       description:
-        '一次看清现在的状态：议题倒计时、今天最重要的事与安排、待接手的任务、本周重点与完成度、需要注意的提醒、收件箱待处理数量。开始任何对话时先调用它。',
+        '一次看清现在的状态：议题倒计时、正在进行的专注、今天最重要的事与安排、待接手的任务、本周重点与完成度、需要注意的提醒、收件箱待处理数量。开始任何对话时先调用它。',
       inputSchema: { date: dateArg.optional().describe('要看的日期，默认今天') },
       annotations: READ,
     },
@@ -179,15 +182,50 @@ export function createServer({
       const inbox = listInbox(db);
       const done = week.tasks.filter((t) => t.status === 'done').length;
       const countdowns = listCountdowns(db);
+      const now = new Date();
+      const focus = getFocusState(db, today(), now);
+      const focusing = focus.running !== null || focus.todayMs > 0;
       return text(
         [
-          ...(countdowns.length > 0 ? [`# 倒计时\n${F.formatCountdowns(countdowns, new Date())}\n`] : []),
+          ...(countdowns.length > 0 ? [`# 倒计时\n${F.formatCountdowns(countdowns, now)}\n`] : []),
+          ...(focusing ? [`# 专心致志\n${F.formatFocusState(focus, now)}\n`] : []),
           F.formatDay(day),
           `\n# 本周（${week.weekKey}）\n重点：${week.plan.focus.join('；') || '（还没写）'}\n任务完成 ${done}/${week.tasks.length}`,
           `\n# 提醒\n${F.formatIssues(health.issues.filter((i) => i.severity !== 'info'))}`,
           `\n# 收件箱\n待处理 ${inbox.pending.length} 条`,
         ].join('\n'),
       );
+    }),
+  );
+
+  server.registerTool(
+    'rp_get_focus',
+    {
+      title: '专注时间',
+      description:
+        '专心致志的统计：正在进行的一段（正计时或倒计时），今天、本周的专注时长，每个议题今天、本周、累计的专注时间。计时由用户在应用里开始和结束，这里只读。',
+      inputSchema: { response_format: responseFormat },
+      annotations: READ,
+    },
+    safe(({ response_format }) => {
+      const now = new Date();
+      const state = getFocusState(db, today(), now);
+      return output(response_format, state, () => F.formatFocusState(state, now));
+    }),
+  );
+
+  server.registerTool(
+    'rp_get_recap',
+    {
+      title: '回顾一周',
+      description:
+        '按天回顾一周实际做了什么：当天最重要的事、完成的任务、排在当天还没做完的任务、各议题的专注时间。用于总结一周或回看某天。',
+      inputSchema: { week: weekArg.optional().describe('周编号，默认本周'), response_format: responseFormat },
+      annotations: READ,
+    },
+    safe(({ week, response_format }) => {
+      const recap = getWeekRecap(db, week ?? thisWeek(), new Date());
+      return output(response_format, recap, () => F.formatRecap(recap));
     }),
   );
 

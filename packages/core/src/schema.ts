@@ -3,6 +3,7 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-o
 import {
   ACTIVITY_ACTIONS,
   ENTITY_TYPES,
+  FOCUS_MODES,
   PROJECT_KINDS,
   PROJECT_STATUSES,
   PROMOTE_TYPES,
@@ -169,6 +170,38 @@ export const resources = sqliteTable(
   ],
 );
 
+/**
+ * 专心致志：一段专注时间，记在某个议题下。ended_at 为空表示正在进行，同一时间最多一段。
+ * 倒计时（timer）有设定时长，到点由服务层补上 ended_at；正计时（stopwatch）由用户手动结束。
+ */
+export const focusSessions = sqliteTable(
+  'focus_sessions',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    themeId: integer('theme_id')
+      .notNull()
+      .references(() => themes.id, { onDelete: 'cascade' }),
+    mode: text('mode', { enum: FOCUS_MODES }).notNull(),
+    /** 倒计时设定的分钟数；正计时为空。 */
+    plannedMinutes: integer('planned_minutes'),
+    startedAt: integer('started_at', { mode: 'timestamp_ms' }).notNull(),
+    endedAt: integer('ended_at', { mode: 'timestamp_ms' }),
+    ...timestamps,
+  },
+  (t) => [
+    index('focus_sessions_theme_idx').on(t.themeId),
+    index('focus_sessions_started_idx').on(t.startedAt),
+    uniqueIndex('focus_sessions_one_running')
+      .on(sql`(${t.endedAt} IS NULL)`)
+      .where(sql`${t.endedAt} IS NULL`),
+    check(
+      'focus_sessions_planned',
+      sql`(${t.mode} = 'timer' AND ${t.plannedMinutes} > 0) OR (${t.mode} = 'stopwatch' AND ${t.plannedMinutes} IS NULL)`,
+    ),
+    check('focus_sessions_order', sql`${t.endedAt} IS NULL OR ${t.endedAt} >= ${t.startedAt}`),
+  ],
+);
+
 export type ActivityPayload = {
   /** 写入时对象的标题快照：对象被删除后仍能看懂这条记录。 */
   title?: string;
@@ -217,3 +250,5 @@ export type DailyPlan = typeof dailyPlans.$inferSelect;
 export type InboxItem = typeof inboxItems.$inferSelect;
 export type Resource = typeof resources.$inferSelect;
 export type ActivityLogEntry = typeof activityLog.$inferSelect;
+export type FocusSession = typeof focusSessions.$inferSelect;
+export type NewFocusSession = typeof focusSessions.$inferInsert;

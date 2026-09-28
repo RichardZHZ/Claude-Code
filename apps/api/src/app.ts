@@ -14,6 +14,7 @@ import {
   type ZoteroClient,
 } from '@researchpilot/core';
 import { backupRoutes } from './routes/backups.ts';
+import { focusRoutes } from './routes/focus.ts';
 import { inboxRoutes } from './routes/inbox.ts';
 import { insightRoutes } from './routes/insights.ts';
 import { planRoutes } from './routes/plans.ts';
@@ -26,6 +27,8 @@ export type AppOptions = {
   db: Db;
   /** 注入"今天"便于测试，默认取系统当天。 */
   today?: () => string;
+  /** 注入"现在"便于测试专心致志的计时，默认取系统时间。 */
+  now?: () => Date;
   /** Zotero 本地 API 客户端，默认按环境变量 ZOTERO_URL 创建。 */
   zotero?: ZoteroClient;
   /** 备份设置，默认按环境变量解析。 */
@@ -37,6 +40,7 @@ export type AppOptions = {
 export function createApp({
   db,
   today = () => toDateString(new Date()),
+  now = () => new Date(),
   zotero = createZoteroClient({ baseUrl: resolveZoteroUrl() }),
   backup = resolveBackupConfig(),
   log = false,
@@ -59,6 +63,7 @@ export function createApp({
   app.route('/', planRoutes(db));
   app.route('/', inboxRoutes(db));
   app.route('/', insightRoutes(db, today));
+  app.route('/', focusRoutes(db, today, now));
   app.route('/', resourceRoutes(db, zotero));
   app.route('/', backupRoutes(db, backup));
 

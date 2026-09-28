@@ -5,6 +5,7 @@ import { ChecksPage } from '@/pages/checks-page';
 import { InboxPage } from '@/pages/inbox-page';
 import { MapPage } from '@/pages/map-page';
 import { ProjectPage } from '@/pages/project-page';
+import { ReviewPage } from '@/pages/review-page';
 import { TodayPage } from '@/pages/today-page';
 import { WeekPage } from '@/pages/week-page';
 import { WidgetPage } from '@/pages/widget-page';
@@ -47,6 +48,14 @@ const inboxRoute = createRoute({ getParentRoute: () => rootRoute, path: '/inbox'
 
 const checksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/checks', component: ChecksPage });
 
+const reviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/review',
+  validateSearch: (search: Record<string, unknown>): { w?: string } =>
+    typeof search.w === 'string' && isValidWeekKey(search.w) ? { w: search.w } : {},
+  component: ReviewPage,
+});
+
 const widgetRoute = createRoute({ getParentRoute: () => rootRoute, path: '/widget', component: WidgetPage });
 
 export const router = createRouter({
@@ -58,6 +67,7 @@ export const router = createRouter({
     projectRoute,
     inboxRoute,
     checksRoute,
+    reviewRoute,
     widgetRoute,
   ]),
   defaultPreload: 'intent',

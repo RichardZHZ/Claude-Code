@@ -14,6 +14,7 @@ export const ENTITY_TYPES = [
   'daily_plan',
   'inbox_item',
   'resource',
+  'focus_session',
 ] as const;
 /** 活动日志里的动作。一次写操作只记一条，取最能概括这次变化的动作。 */
 export const ACTIVITY_ACTIONS = [
@@ -33,10 +34,15 @@ export const ACTIVITY_ACTIONS = [
   'promoted',
   'linked',
   'unlinked',
+  // 专心致志：开始、手动结束（倒计时自然结束记为 completed）。
+  'started',
+  'stopped',
 ] as const;
 export const RESOURCE_OWNER_TYPES = ['theme', 'project', 'task'] as const;
 export const RESOURCE_KINDS = ['url', 'zotero', 'file'] as const;
 export const PROMOTE_TYPES = ['theme', 'project', 'task'] as const;
+/** 专心致志的两种计时：正计时（手动开始、手动结束）和倒计时（设定时长，到点自动结束）。 */
+export const FOCUS_MODES = ['stopwatch', 'timer'] as const;
 export const BACKUP_REASONS = ['scheduled', 'manual', 'before-migration', 'before-restore'] as const;
 
 export type ThemeStatus = (typeof THEME_STATUSES)[number];
@@ -49,6 +55,12 @@ export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 export type ResourceOwnerType = (typeof RESOURCE_OWNER_TYPES)[number];
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 export type BackupReason = (typeof BACKUP_REASONS)[number];
+export type FocusMode = (typeof FOCUS_MODES)[number];
+
+export const FOCUS_MODE_LABELS: Record<FocusMode, string> = {
+  stopwatch: '正计时',
+  timer: '倒计时',
+};
 
 export const BACKUP_REASON_LABELS: Record<BackupReason, string> = {
   scheduled: '自动备份',
@@ -106,3 +118,8 @@ export const CLOSED_PROJECT_STATUSES: readonly ProjectStatus[] = ['done', 'dropp
 export const MAX_TOP_TASKS = 3;
 /** 每周重点最多几条。 */
 export const MAX_WEEK_FOCUS = 5;
+
+/** 倒计时专注的常用时长（分钟）。 */
+export const FOCUS_TIMER_PRESETS = [25, 45, 60, 90] as const;
+/** 倒计时专注最长多少分钟。 */
+export const MAX_FOCUS_TIMER_MINUTES = 600;

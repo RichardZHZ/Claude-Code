@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { isoWeekKey, openDb, runMigrations, toDateString } from '@researchpilot/core';
 import type {
   DayViewDto,
+  FocusSessionDto,
+  FocusStateDto,
+  WeekRecapDto,
   ProjectDetailDto,
   TaskViewDto,
   ThemeMapDto,
@@ -303,5 +306,52 @@ describe('文献与链接', () => {
     expect(res.status).toBe(503);
     expect(res.data.error).toMatch(/连不上 Zotero/);
     expect((await call<{ available: boolean }>('GET', '/zotero/status')).data.available).toBe(false);
+  });
+});
+
+describe('专心致志与回顾', () => {
+  it('开始、结束、倒计时到点自动存档；GET /api/recap 汇总每天', async () => {
+    const db = openDb(':memory:');
+    runMigrations(db);
+    let clock = new Date(2026, 8, 28, 9, 0);
+    app = createApp({ db, today: () => '2026-09-28', now: () => clock });
+
+    const theme = await call<{ id: number }>('POST', '/themes', { title: '气候金融' });
+    expect(
+      (await call('POST', '/focus/start', { themeId: theme.data.id, mode: 'timer' })).data,
+    ).toMatchObject({
+      error: '倒计时需要设定分钟数',
+    });
+
+    const started = await call<FocusSessionDto>('POST', '/focus/start', {
+      themeId: theme.data.id,
+      mode: 'stopwatch',
+    });
+    expect(started.status).toBe(201);
+    expect(started.data).toMatchObject({ themeTitle: '气候金融', endedAt: null });
+    const again = await call<{ error: string }>('POST', '/focus/start', {
+      themeId: theme.data.id,
+      mode: 'stopwatch',
+    });
+    expect(again.status).toBe(400);
+
+    clock = new Date(2026, 8, 28, 10, 30);
+    const stopped = await call<FocusSessionDto>('POST', '/focus/stop', {});
+    expect(stopped.data.durationMs).toBe(90 * 60_000);
+
+    await call('POST', '/focus/start', { themeId: theme.data.id, mode: 'timer', plannedMinutes: 25 });
+    clock = new Date(2026, 8, 28, 11, 0);
+    const state = await call<FocusStateDto>('GET', '/focus');
+    expect(state.data.running).toBeNull();
+    expect(state.data.todayMs).toBe(115 * 60_000);
+    expect(state.data.themes[0]).toMatchObject({ title: '气候金融', todayMs: 115 * 60_000, sessions: 2 });
+
+    const recap = await call<WeekRecapDto>('GET', '/recap/2026-W40');
+    expect(recap.data.days[0]).toMatchObject({ date: '2026-09-28', focusMs: 115 * 60_000 });
+    expect((await call('GET', '/recap/2026-40')).status).toBe(400);
+
+    const id = state.data.todaySessions[0]!.id;
+    expect((await call('DELETE', `/focus/sessions/${id}`)).status).toBe(204);
+    expect((await call<FocusStateDto>('GET', '/focus')).data.todayMs).toBe(90 * 60_000);
   });
 });

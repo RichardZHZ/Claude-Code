@@ -1,15 +1,18 @@
 import { and, desc, eq, isNotNull, lt, max, type SQL } from 'drizzle-orm';
 import type { Conn } from '../db.ts';
 import {
+  FOCUS_MODE_LABELS,
   PROJECT_STATUS_LABELS,
   TASK_STATUS_LABELS,
   THEME_STATUS_LABELS,
   type ActivityAction,
   type EntityType,
+  type FocusMode,
   type ProjectStatus,
   type TaskStatus,
   type ThemeStatus,
 } from '../enums.ts';
+import { formatFocusDuration } from '../focus.ts';
 import { activityLog, projects, type ActivityLogEntry, type ActivityPayload } from '../schema.ts';
 import type { ActivityView } from '../types.ts';
 
@@ -111,6 +114,7 @@ const ENTITY_LABELS: Record<EntityType, string> = {
   daily_plan: '日计划',
   inbox_item: '收件箱记录',
   resource: '资源',
+  focus_session: '专注记录',
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -154,6 +158,8 @@ export function describeActivity(e: Pick<ActivityLogEntry, 'entityType' | 'actio
   const name = p.title ? `"${p.title}"` : '';
   const changes = p.changes ?? {};
 
+  if (e.entityType === 'focus_session') return describeFocus(e.action, p);
+
   switch (e.action) {
     case 'created':
       return e.entityType === 'inbox_item' ? `记下：${name}` : `新建${what}${name}`;
@@ -196,6 +202,9 @@ export function describeActivity(e: Pick<ActivityLogEntry, 'entityType' | 'actio
       const where = typeof p.ownerTitle === 'string' ? `（${p.ownerTitle}）` : '';
       return `${e.action === 'linked' ? '关联' : '移除'}${kind}${name}${where}`;
     }
+    case 'started':
+    case 'stopped':
+      return `${e.action === 'started' ? '开始' : '结束'}${what}${name}`;
     case 'updated': {
       if (changes.currentStatus && Object.keys(changes).length === 1) return `更新${what}${name}的现状`;
       const fields = Object.keys(changes)
@@ -203,5 +212,26 @@ export function describeActivity(e: Pick<ActivityLogEntry, 'entityType' | 'actio
         .slice(0, 4);
       return fields.length ? `修改${what}${name}（${fields.join('、')}）` : `修改${what}${name}`;
     }
+  }
+}
+
+/** 专心致志的记录：'开始专注"议题"（正计时）'、'结束专注"议题"，共 1 小时 5 分'。 */
+function describeFocus(action: ActivityAction, p: ActivityPayload): string {
+  const name = p.title ? `"${p.title}"` : '';
+  const mode = FOCUS_MODE_LABELS[p.mode as FocusMode] ?? '';
+  const took = typeof p.durationMs === 'number' ? `，共 ${formatFocusDuration(p.durationMs)}` : '';
+  switch (action) {
+    case 'started': {
+      const planned = typeof p.plannedMinutes === 'number' ? ` ${p.plannedMinutes} 分钟` : '';
+      return `开始专注${name}（${mode}${planned}）`;
+    }
+    case 'stopped':
+      return `结束专注${name}${took}`;
+    case 'completed':
+      return `完成专注${name}（${mode}）${took}`;
+    case 'deleted':
+      return `删除专注记录${name}${took}`;
+    default:
+      return `专注${name}`;
   }
 }

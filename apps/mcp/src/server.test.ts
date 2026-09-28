@@ -10,6 +10,8 @@ import {
   openDb,
   runMigrations,
   seedSampleData,
+  startFocus,
+  stopFocus,
   type Db,
 } from '@researchpilot/core';
 import { fakeZoteroFetch } from '@researchpilot/core/testing';
@@ -170,6 +172,28 @@ describe('草稿与写入', () => {
       `已取消议题 #${theme.id} 博士论文 的倒计时。`,
     );
     expect((await call('rp_get_overview')).text).not.toContain('# 倒计时');
+  });
+
+  it('专注时间与一周回顾', async () => {
+    const theme = createTheme(db, { title: '气候金融' });
+    // 今天（2026-09-28）上午一段 75 分钟；之后再开始一段正在进行的正计时。
+    startFocus(db, { themeId: theme.id, mode: 'stopwatch' }, new Date(2026, 8, 28, 9, 0));
+    stopFocus(db, {}, new Date(2026, 8, 28, 10, 15));
+
+    const recap = (await call('rp_get_recap', { week: '2026-W40' })).text;
+    expect(recap).toMatch(/# 回顾 2026-W40（9月28日 – 10月4日）/);
+    expect(recap).toMatch(/## 9月28日（周一）\n专注 1 小时 15 分：议题 #\d+ 气候金融 1 小时 15 分/);
+    expect((await call('rp_get_recap', { week: '2026-W30' })).text).toContain('这一周还没有记录。');
+
+    // 10 分钟前开始、还在进行的一段（不计入今天、本周的合计）。
+    startFocus(db, { themeId: theme.id, mode: 'stopwatch' }, new Date(Date.now() - 10 * 60_000));
+    const focus = (await call('rp_get_focus')).text;
+    expect(focus).toMatch(/- 进行中：议题 #\d+ 气候金融（正计时，已进行 10 分）/);
+    expect(focus).toContain('- 今天 1 小时 15 分');
+    expect(focus).toMatch(
+      /议题 #\d+ 气候金融：今天 1 小时 15 分，本周 1 小时 15 分，累计 1 小时 15 分（1 段）/,
+    );
+    expect((await call('rp_get_overview')).text).toContain('# 专心致志');
   });
 
   it('收件箱：记下再转成任务', async () => {

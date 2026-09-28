@@ -9,6 +9,7 @@
     "./enums": "./src/enums.ts",
     "./week": "./src/week.ts",
     "./countdown": "./src/countdown.ts",
+    "./focus": "./src/focus.ts",
     "./health-rules": "./src/rules/health.ts",
     "./testing": "./src/testing/fake-zotero.ts",
     "./config": "./src/config.ts"

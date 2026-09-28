@@ -99,13 +99,32 @@ activity_log  所有写操作的记录（附课题、议题上下文，不设外
 
 | 字段 | 说明 |
 | --- | --- |
-| entity_type, entity_id | 被修改的对象：`theme` / `project` / `milestone` / `task` / `weekly_plan` / `daily_plan` / `inbox_item` |
-| action | `created` / `updated` / `deleted` / `completed` / `reopened` / `status_changed` / `scheduled` / `unscheduled` / `moved` / `planned` / `promoted` / `linked` / `unlinked`。旧版本还会有 `journaled`、`reviewed`（工作日志和复盘，现已移除），仍能正常显示 |
+| entity_type, entity_id | 被修改的对象：`theme` / `project` / `milestone` / `task` / `weekly_plan` / `daily_plan` / `inbox_item` / `resource` / `focus_session` |
+| action | `created` / `updated` / `deleted` / `completed` / `reopened` / `status_changed` / `scheduled` / `unscheduled` / `moved` / `planned` / `promoted` / `linked` / `unlinked` / `started` / `stopped`（专注的开始与手动结束；倒计时到点记为 `completed`）。旧版本还会有 `journaled`、`reviewed`（工作日志和复盘，现已移除），仍能正常显示 |
 | project_id, theme_id | 写入时所属的课题和议题。不设外键，对象删除后记录仍在 |
 | payload | `{ title, changes: { 字段: [旧值, 新值] }, ... }`。title 是写入时的标题快照 |
 | at | 发生时刻 |
 
 中文说明（例如"完成任务"跑回归""）由 `services/activity.ts` 的 `describeActivity` 在读取时生成，不存库。
+
+### focus_sessions 专心致志
+
+一段专注时间，记在某个议题下。
+
+| 字段 | 说明 |
+| --- | --- |
+| theme_id | 所属议题（必填）。删除议题时一并删除 |
+| mode | `stopwatch` 正计时（手动开始、手动结束）或 `timer` 倒计时（设定时长，到点自动结束） |
+| planned_minutes | 倒计时设定的分钟数；正计时为空（CHECK 约束保证） |
+| started_at, ended_at | 开始、结束时刻。`ended_at` 为空表示正在进行，唯一索引保证同一时间最多一段 |
+
+- 时长 = 结束时刻 − 开始时刻（进行中的按当前时刻算，倒计时不超过设定时长），不存库。
+- 倒计时到点后，服务层在下一次读写时补上 `ended_at`（取到点时刻），不依赖页面是否开着。
+- 按天统计时，一段专注记在它开始的那一天（本机时区）。
+
+### 回顾
+
+回顾页不另外存数据，全部由现有数据推出：当天最重要的事来自 `daily_plans`，完成的任务按 `tasks.done_at` 所在的日子，没做完的按 `tasks.scheduled_date`，专注时间来自 `focus_sessions`。
 
 ### 已移除：工作日志与复盘
 

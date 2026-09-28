@@ -11,14 +11,19 @@ import type {
   HealthReportDto,
   CountdownDto,
   DayViewDto,
+  FocusSessionDto,
+  FocusStateDto,
   InboxListDto,
   OwnerOptionsDto,
   ProjectDetailDto,
+  StartFocusInput,
   TaskViewDto,
   ThemeMapDto,
   UpdateTaskInput,
+  WeekRecapDto,
   WeekViewDto,
 } from '@researchpilot/core/contracts';
+import { formatFocusDuration } from '@researchpilot/core/focus';
 import { api, type Health } from './api';
 
 export const useHealth = () =>
@@ -127,6 +132,34 @@ export const useCountdowns = () =>
   useQuery({
     queryKey: ['countdowns'],
     queryFn: ({ signal }) => api.get<CountdownDto[]>('/countdowns', signal),
+  });
+
+/**
+ * 专心致志的状态。today 取本机日期。小窗和主窗口各开一个页面，
+ * 另一边开始或结束计时后，靠定时刷新和窗口获得焦点时刷新跟上。
+ */
+export const useFocus = (today: string, refetchInterval: number | false = 30_000) =>
+  useQuery({
+    queryKey: ['focus', today],
+    queryFn: ({ signal }) => api.get<FocusStateDto>(`/focus?today=${today}`, signal),
+    refetchInterval,
+  });
+
+/** 开始、结束、放弃（删除）专注。 */
+export function useFocusActions() {
+  const start = useAction((input: StartFocusInput) => api.post<FocusSessionDto>('/focus/start', input));
+  const stop = useAction((id: number) => api.post<FocusSessionDto>('/focus/stop', { id }), {
+    success: (s) => `已存档：${s.themeTitle} ${formatFocusDuration(s.durationMs)}`,
+  });
+  const remove = useAction((id: number) => api.delete(`/focus/sessions/${id}`));
+  return { start, stop, remove };
+}
+
+/** 一周回顾：每天完成的任务、最重要的事、专注时间。 */
+export const useRecap = (weekKey: string) =>
+  useQuery({
+    queryKey: ['recap', weekKey],
+    queryFn: ({ signal }) => api.get<WeekRecapDto>(`/recap/${weekKey}`, signal),
   });
 
 /**
