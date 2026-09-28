@@ -8,7 +8,6 @@ import {
   PROJECT_KINDS,
   PROJECT_STATUSES,
   RESOURCE_OWNER_TYPES,
-  REVIEW_KINDS,
   TASK_STATUSES,
   THEME_STATUSES,
 } from './enums.ts';
@@ -54,6 +53,12 @@ export const createThemeInput = z.object({
   status: z.enum(THEME_STATUSES).optional(),
   startedAt: date.nullable().optional(),
   reviewCadenceDays: z.number().int().min(1).max(365).optional(),
+  /** 倒计时截止时刻，ISO 8601（带时区），传 null 取消倒计时。 */
+  countdownAt: z.iso
+    .datetime({ offset: true, message: '倒计时时间格式不正确' })
+    .transform((v) => new Date(v))
+    .nullable()
+    .optional(),
 });
 export const updateThemeInput = createThemeInput.partial();
 export type CreateThemeInput = z.infer<typeof createThemeInput>;
@@ -126,29 +131,14 @@ export type TaskQuery = z.infer<typeof taskQuery>;
 export const weekPlanInput = z.object({
   focus: lineList(MAX_WEEK_FOCUS, '本周重点'),
 });
-export const weekReviewInput = z.object({
-  wins: lineList(30, '收获'),
-  blockers: lineList(30, '阻碍'),
-  carryOver: lineList(30, '带入下周'),
-  reflection: z.string().trim().max(5000),
-});
 export const dayPlanInput = z.object({
   topTaskIds: z
     .array(id)
     .max(MAX_TOP_TASKS, `每天最重要的事最多 ${MAX_TOP_TASKS} 件`)
-    .refine((ids) => new Set(ids).size === ids.length, '不能重复选择同一个任务')
-    .optional(),
-  journal: optionalText(20000),
-});
-export const dayReviewInput = z.object({
-  done: z.string().trim().max(5000),
-  blockers: z.string().trim().max(5000),
-  tomorrow: z.string().trim().max(5000),
+    .refine((ids) => new Set(ids).size === ids.length, '不能重复选择同一个任务'),
 });
 export type WeekPlanInput = z.infer<typeof weekPlanInput>;
-export type WeekReviewInput = z.infer<typeof weekReviewInput>;
 export type DayPlanInput = z.infer<typeof dayPlanInput>;
-export type DayReviewInput = z.infer<typeof dayReviewInput>;
 
 export const dateParam = date;
 export const weekKeyParam = weekKey;
@@ -180,7 +170,7 @@ export const promoteInboxInput = z.discriminatedUnion('type', [
 export type CreateInboxInput = z.infer<typeof createInboxInput>;
 export type PromoteInboxInput = z.infer<typeof promoteInboxInput>;
 
-// ---------- 健康检查、活动记录、复盘时间线 ----------
+// ---------- 健康检查、活动记录 ----------
 
 const positiveInt = z.coerce.number().int().positive();
 
@@ -190,11 +180,6 @@ export const activityQuery = z.object({
   themeId: positiveInt.optional(),
   before: positiveInt.optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
-});
-export const reviewsQuery = z.object({
-  kind: z.enum(REVIEW_KINDS).optional(),
-  before: positiveInt.optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 // ---------- 资源与 Zotero ----------
@@ -247,8 +232,6 @@ export type ProjectDto = Wire<S.Project>;
 export type MilestoneDto = Wire<S.Milestone>;
 export type TaskDto = Wire<S.Task>;
 export type InboxItemDto = Wire<S.InboxItem>;
-export type WeeklyReview = S.WeeklyReview;
-export type DailyReview = S.DailyReview;
 export type Progress = V.Progress;
 export type TaskViewDto = Wire<V.TaskView>;
 export type MilestoneViewDto = Wire<V.MilestoneView>;
@@ -267,9 +250,6 @@ export type HealthIssueDto = H.HealthIssue;
 export type HealthReportDto = V.HealthReport;
 export type HealthSeverity = H.HealthSeverity;
 export type ActivityDto = Wire<V.ActivityView>;
-export type ReviewEntryDto = Wire<V.ReviewEntry>;
-export type WeekReviewStats = S.WeekReviewStats;
-export type DayReviewStats = S.DayReviewStats;
 export type ResourceDto = Wire<V.ResourceView>;
 export type ResourceMeta = S.ResourceMeta;
 export type ZoteroItemDto = Z.ZoteroItem;
@@ -277,6 +257,6 @@ export type ZoteroStatusDto = Z.ZoteroStatus;
 export type DraftTaskDto = Wire<V.DraftTask>;
 export type WeekPlanDraftDto = Wire<V.WeekPlanDraft>;
 export type DayPlanDraftDto = Wire<V.DayPlanDraft>;
-export type WeekReviewDraftDto = Wire<V.WeekReviewDraft>;
+export type CountdownDto = Wire<V.Countdown>;
 export type BackupInfoDto = Wire<V.BackupInfo>;
 export type BackupStatusDto = Wire<V.BackupStatus>;

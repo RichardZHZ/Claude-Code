@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// 完整走一遍目标链：议题 → 课题 → 里程碑 → 任务 → 本周 → 今天 → 完成 → 复盘，
+// 完整走一遍目标链：议题 → 课题 → 里程碑 → 任务 → 本周 → 今天 → 完成，
 // 再从收件箱把一条想法升级为议题下的任务。
 
 test.describe.configure({ mode: 'serial' });
@@ -82,19 +82,8 @@ test('议题 → 课题 → 任务 → 本周 → 今天 → 完成', async ({ p
   await top.getByRole('checkbox', { name: '标记为完成：清洗气象数据' }).click();
   await expect(top.getByRole('checkbox', { name: '标记为未完成：清洗气象数据' })).toBeChecked();
 
-  // 8. 工作日志与晚间复盘
-  await page.getByLabel('工作日志').fill('上午清洗完气象站数据，缺失值用邻近站点插补。');
-  await page.getByRole('button', { name: '保存日志' }).click();
-  await expect(page.getByRole('button', { name: '已保存' })).toBeVisible();
-
-  const review = page.getByTestId('day-review');
-  await review.getByLabel('今天完成了什么').fill('数据清洗');
-  await review.getByLabel('明天先做什么').fill('跑回归');
-  await review.getByRole('button', { name: '保存复盘' }).click();
-  await expect(review.getByText(/已于 \d{2}:\d{2} 复盘/)).toBeVisible();
-
-  // 9. 回到议题地图，进度已更新（3 个任务完成 1 个）
-  await page.getByRole('link', { name: '议题地图' }).click();
+  // 8. 回到议题地图，进度已更新（3 个任务完成 1 个）
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '议题地图' }).click();
   await expect(
     page.getByTestId('project-row').filter({ hasText: PROJECT }).getByText('1/3 · 33%'),
   ).toBeVisible();
@@ -102,7 +91,9 @@ test('议题 → 课题 → 任务 → 本周 → 今天 → 完成', async ({ p
   // 刷新后数据仍在（确实写进了数据库）
   await page.goto('/today');
   await expect(page.getByTestId('top-tasks').getByText('清洗气象数据')).toBeVisible();
-  await expect(page.getByLabel('工作日志')).toHaveValue('上午清洗完气象站数据，缺失值用邻近站点插补。');
+  // 工作日志和复盘已经移除
+  await expect(page.getByLabel('工作日志')).toHaveCount(0);
+  await expect(page.getByTestId('day-review')).toHaveCount(0);
 });
 
 test('收件箱：随手记 → 转为议题下的任务', async ({ page }) => {
@@ -122,7 +113,7 @@ test('收件箱：随手记 → 转为议题下的任务', async ({ page }) => {
   await expect(page.getByTestId('inbox-processed').getByText('→ 已转为任务')).toBeVisible();
 
   // 任务出现在议题下，也因为勾选了"排进本周"而出现在本周
-  await page.getByRole('link', { name: '议题地图' }).click();
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '议题地图' }).click();
   await expect(page.getByTestId('theme-card').getByText('读一篇城市热岛的经典综述')).toBeVisible();
   await page.getByRole('link', { name: '本周' }).click();
   await expect(page.getByTestId('week-tasks').getByText('读一篇城市热岛的经典综述')).toBeVisible();

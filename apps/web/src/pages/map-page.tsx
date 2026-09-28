@@ -4,6 +4,7 @@ import { Pencil, Plus } from 'lucide-react';
 import { PROJECT_KIND_LABELS, PROJECT_STATUS_LABELS, THEME_STATUS_LABELS } from '@researchpilot/core/enums';
 import type { ProjectSummaryDto, ThemeMapEntryDto } from '@researchpilot/core/contracts';
 import { EmptyHint, PageHeader, QueryView } from '@/components/common';
+import { ThemeCountdown } from '@/components/countdown/countdown-card';
 import { CalendarExport } from '@/components/goals/calendar-export';
 import { ProjectDialog } from '@/components/goals/project-dialog';
 import { ResourcesPanel } from '@/components/resources/resources-panel';
@@ -126,6 +127,7 @@ function ThemeCard({ theme, today }: { theme: ThemeMapEntryDto; today: string })
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 px-5">
+        {theme.countdownAt && <ThemeCountdown at={theme.countdownAt} />}
         <ProgressLine done={theme.progress.done} total={theme.progress.total} label="议题整体" />
         {theme.coreQuestions.length > 0 && (
           <ul className="list-disc space-y-0.5 pl-5 text-sm text-muted-foreground">

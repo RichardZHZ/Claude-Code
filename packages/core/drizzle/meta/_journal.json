@@ -22,6 +22,13 @@
       "when": 1790579389137,
       "tag": "0002_resource_meta",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790604133822,
+      "tag": "0003_countdown_and_drop_reviews",
+      "breakpoints": true
     }
   ]
 }

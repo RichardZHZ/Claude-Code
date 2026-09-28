@@ -5,7 +5,6 @@ import { runMigrations } from '../migrate.ts';
 import { activityLog, milestones, projects, tasks, themes } from '../schema.ts';
 import { buildHealthSnapshot, getHealthReport } from './health.ts';
 import { createMilestone } from './milestones.ts';
-import { saveWeekPlan, saveWeekReview } from './plans.ts';
 import { createProject } from './projects.ts';
 import { createTask, updateTask } from './tasks.ts';
 import { createTheme } from './themes.ts';
@@ -55,23 +54,6 @@ describe('健康检查（读数据库）', () => {
     const report = getHealthReport(db, '2026-09-28');
     expect(report.issues[0]?.key).toBe(`milestone_at_risk:${m.id}`);
     expect(report.counts).toEqual({ danger: 0, warning: 1, info: 0 });
-  });
-
-  it('上周的计划和复盘状态', () => {
-    const project = createProject(db, { title: '论文' });
-    createTask(db, { title: 'a', projectId: project.id, weekKey: '2026-W39' });
-    saveWeekPlan(db, '2026-W40', { focus: ['本周重点'] });
-    const snap = buildHealthSnapshot(db, '2026-09-28');
-    expect(snap.weeks).toEqual([
-      { weekKey: '2026-W39', hasPlan: false, taskCount: 1, reviewed: false },
-      { weekKey: '2026-W40', hasPlan: true, taskCount: 0, reviewed: false },
-    ]);
-    expect(getHealthReport(db, '2026-09-28').issues.map((i) => i.key)).toEqual([
-      'missing_week_review:2026-W39',
-    ]);
-
-    saveWeekReview(db, '2026-W39', { wins: [], blockers: [], carryOver: [], reflection: '' });
-    expect(getHealthReport(db, '2026-09-28').issues).toEqual([]);
   });
 
   it('课题删除后遗留的活动日志不影响检查', () => {

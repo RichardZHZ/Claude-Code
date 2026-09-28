@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateHealth, type HealthSnapshot } from './health.ts';
 
-// 2026-09-28 是周一（2026-W40），2026-10-02 是周五。
 const base: HealthSnapshot = {
   today: '2026-09-28',
   themes: [{ id: 1, title: '议题', status: 'active', createdOn: '2026-01-01' }],
   projects: [{ id: 10, title: '论文', status: 'active', themeId: 1, lastActiveOn: '2026-09-27' }],
   milestones: [],
   openTasks: [],
-  weeks: [],
 };
 
 function run(patch: Partial<HealthSnapshot>) {
@@ -93,38 +91,6 @@ describe('健康检查', () => {
       expect(keys({ projects: [{ ...base.projects[0]!, status: 'paused' }], milestones: [m] })).not.toContain(
         'milestone_at_risk:5',
       );
-    });
-  });
-
-  describe('周复盘', () => {
-    const week = (weekKey: string, patch: Partial<HealthSnapshot['weeks'][number]> = {}) => ({
-      weekKey,
-      hasPlan: true,
-      taskCount: 3,
-      reviewed: false,
-      ...patch,
-    });
-
-    it('上周有计划却没复盘', () => {
-      expect(run({ weeks: [week('2026-W39')] })[0]).toMatchObject({
-        severity: 'warning',
-        title: '上周（2026-W39）还没有复盘',
-        target: { type: 'week', weekKey: '2026-W39' },
-      });
-    });
-
-    it('上周已复盘或完全空白，不提醒', () => {
-      expect(keys({ weeks: [week('2026-W39', { reviewed: true })] })).toEqual([]);
-      expect(keys({ weeks: [week('2026-W39', { hasPlan: false, taskCount: 0 })] })).toEqual([]);
-    });
-
-    it('本周从周五开始提醒', () => {
-      const weeks = [week('2026-W40')];
-      expect(keys({ weeks, today: '2026-10-01' })).toEqual([]); // 周四
-      expect(run({ weeks, today: '2026-10-02' })[0]).toMatchObject({
-        severity: 'info',
-        rule: 'missing_week_review',
-      });
     });
   });
 

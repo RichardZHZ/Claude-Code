@@ -14,7 +14,8 @@ export type WidgetState = {
 };
 
 const DEFAULT_STATE: WidgetState = { visible: true, pinned: false };
-const DEFAULT_SIZE = { width: 300, height: 250 };
+/** 顶部倒计时加上三五件事的高度。 */
+const DEFAULT_SIZE = { width: 300, height: 340 };
 const MARGIN = 24;
 
 export type WidgetOptions = {
@@ -76,7 +77,7 @@ export class DesktopWidget {
     const win = new BrowserWindow({
       ...this.initialBounds(),
       minWidth: 240,
-      minHeight: 160,
+      minHeight: 200,
       maxWidth: 560,
       maxHeight: 720,
       title: '科研小助理 · 今天',

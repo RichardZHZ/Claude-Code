@@ -68,14 +68,14 @@ describe('工具清单', () => {
       expect(t.title, t.name).toBeTruthy();
       expect(t.description, t.name).toBeTruthy();
       expect(t.annotations, t.name).toBeDefined();
-      const isWrite = /^rp_(save|create|update|capture|promote|link|add)_/.test(t.name);
+      const isWrite = /^rp_(save|create|update|set|capture|promote|link|add)_/.test(t.name);
       expect(t.annotations?.readOnlyHint, t.name).toBe(!isWrite);
     }
   });
 
-  it('提供三个工作流提示', async () => {
+  it('提供两个工作流提示', async () => {
     const { prompts } = await client.listPrompts();
-    expect(prompts.map((p) => p.name).sort()).toEqual(['plan_day', 'plan_week', 'review_week']);
+    expect(prompts.map((p) => p.name).sort()).toEqual(['plan_day', 'plan_week']);
     const prompt = await client.getPrompt({ name: 'plan_week', arguments: { week_key: '2026-W41' } });
     const msg = prompt.messages[0]?.content;
     expect(msg?.type === 'text' ? msg.text : '').toMatch(
@@ -140,33 +140,36 @@ describe('草稿与写入', () => {
     expect(week.text).toMatch(/本周任务（完成 0\/1）[\s\S]*写结果部分/);
   });
 
-  it('日计划：设定最重要的事、写日志、晚间复盘', async () => {
+  it('日计划：设定最重要的事', async () => {
     const p = createProject(db, { title: '论文' });
     const t = createTask(db, { title: '画图', projectId: p.id, weekKey: '2026-W40' });
     expect((await call('rp_draft_day_plan')).text).toContain(`#${t.id} 画图`);
-    const saved = await call('rp_save_day_plan', { top_task_ids: [t.id], journal: '上午画了两张' });
+    const saved = await call('rp_save_day_plan', { top_task_ids: [t.id] });
     expect(saved.text).toContain(`#${t.id} 画图`);
-    await call('rp_update_task', { task_id: t.id, status: 'done' });
-    await call('rp_save_day_review', { done: '图画完了', blockers: '', tomorrow: '写结果' });
-    const reviews = await call('rp_list_reviews', { kind: 'day' });
-    expect(reviews.text).toMatch(/日复盘 9月28日（周一）[\s\S]*完成 1\/1[\s\S]*完成了：图画完了/);
     const day = await call('rp_get_day');
-    expect(day.text).toContain('上午画了两张');
+    expect(day.text).toMatch(/## 最重要的事\n- \[ \] #\d+ 画图/);
+    expect(day.text).not.toContain('复盘');
   });
 
-  it('周复盘草稿与保存', async () => {
-    const p = createProject(db, { title: '论文' });
-    const t = createTask(db, { title: '清洗数据', projectId: p.id, weekKey: '2026-W40' });
-    await call('rp_update_task', { task_id: t.id, status: 'done' });
-    const draft = await call('rp_draft_week_review');
-    expect(draft.text).toContain('完成"清洗数据"（论文）');
-    await call('rp_save_week_review', {
-      wins: ['数据清洗完成'],
-      blockers: [],
-      carry_over: [],
-      reflection: '顺利',
-    });
-    expect((await call('rp_list_reviews', { kind: 'week' })).text).toContain('收获：数据清洗完成');
+  it('设定、取消议题倒计时；概览和议题地图显示剩余时间', async () => {
+    const theme = createTheme(db, { title: '博士论文' });
+    const set = await call('rp_set_countdown', { theme_id: theme.id, at: '2099-06-30T18:00:00+08:00' });
+    expect(set.text).toMatch(
+      /已把议题 #\d+ 博士论文 的倒计时设为 2099年6月30日 .*（还剩 \d+ 天 \d+ 小时 \d+ 分 \d+ 秒）/,
+    );
+    expect((await call('rp_get_overview')).text).toMatch(
+      /# 倒计时\n- 议题 #\d+ 博士论文：2099年6月30日 .* 截止，还剩 \d+ 天/,
+    );
+    expect((await call('rp_list_themes')).text).toMatch(/倒计时：2099年6月30日 .* 截止（还剩 \d+ 天/);
+
+    const bad = await call('rp_set_countdown', { theme_id: theme.id, at: '明年夏天' });
+    expect(bad.isError).toBe(true);
+    expect(bad.text).toContain('倒计时时间格式不正确');
+
+    expect((await call('rp_set_countdown', { theme_id: theme.id, at: null })).text).toBe(
+      `已取消议题 #${theme.id} 博士论文 的倒计时。`,
+    );
+    expect((await call('rp_get_overview')).text).not.toContain('# 倒计时');
   });
 
   it('收件箱：记下再转成任务', async () => {

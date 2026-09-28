@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb, type Db } from '../db.ts';
 import { runMigrations } from '../migrate.ts';
 import { activityLog } from '../schema.ts';
-import { describeActivity, lastActivityByProject, listActivity } from './activity.ts';
+import { describeActivity, lastActivityByProject, listActivity, logActivity } from './activity.ts';
 import { createInboxItem, promoteInboxItem } from './inbox.ts';
 import { createMilestone, updateMilestone } from './milestones.ts';
 import { saveDayPlan, saveWeekPlan } from './plans.ts';
@@ -94,11 +94,29 @@ describe('活动日志', () => {
   it('选定最重要的事时，被排到当天的任务也记一笔', () => {
     const { project } = setup();
     const t = createTask(db, { title: '写提纲', projectId: project.id });
-    saveDayPlan(db, '2026-09-28', { topTaskIds: [t.id], journal: '上午写了一半' });
+    saveDayPlan(db, '2026-09-28', { topTaskIds: [t.id] });
+    expect(summaries({ limit: 2 })).toEqual(['选定9月28日最重要的事', '任务"写提纲"排到9月28日']);
+  });
+
+  it('议题倒计时的设定与取消', () => {
+    const { theme } = setup();
+    updateTheme(db, theme.id, { countdownAt: new Date('2027-06-30T18:00:00+08:00') });
+    updateTheme(db, theme.id, { countdownAt: null });
+    expect(summaries({ limit: 2 })).toEqual(['修改议题"议题"（倒计时）', '修改议题"议题"（倒计时）']);
+  });
+
+  it('旧版本留下的日志和复盘记录仍能读懂', () => {
+    for (const [entityType, action, payload] of [
+      ['daily_plan', 'journaled', { date: '2026-09-28' }],
+      ['daily_plan', 'reviewed', { date: '2026-09-28' }],
+      ['weekly_plan', 'reviewed', { weekKey: '2026-W40' }],
+    ] as const) {
+      logActivity(db, { entityType, entityId: 1, action, payload });
+    }
     expect(summaries({ limit: 3 })).toEqual([
+      '完成 2026-W40 周复盘',
+      '完成9月28日的晚间复盘',
       '更新9月28日的工作日志',
-      '选定9月28日最重要的事',
-      '任务"写提纲"排到9月28日',
     ]);
   });
 

@@ -2,7 +2,7 @@
 // 所有判断都是确定性的，阈值集中在 HEALTH_THRESHOLDS 里。
 
 import type { ProjectStatus, TaskStatus, ThemeStatus } from '../enums.ts';
-import { daysBetween, isoWeekKey, shiftWeek, weekdayOf } from '../week.ts';
+import { daysBetween } from '../week.ts';
 
 export const HEALTH_THRESHOLDS = {
   /** 进行中的课题超过这么多天没有任何活动，视为停滞。 */
@@ -13,14 +13,11 @@ export const HEALTH_THRESHOLDS = {
   milestoneMinPercent: 50,
   /** 议题建立后这么多天内不提醒"没有进行中的课题"。 */
   themeGraceDays: 7,
-  /** 从星期几开始提醒写本周复盘（周一为 0，周五为 4）。 */
-  weekReviewFromWeekday: 4,
 } as const;
 
 export const HEALTH_RULES = [
   'milestone_at_risk',
   'stale_project',
-  'missing_week_review',
   'orphaned_tasks',
   'dormant_theme',
 ] as const;
@@ -30,13 +27,11 @@ export type HealthSeverity = 'danger' | 'warning' | 'info';
 export const HEALTH_RULE_LABELS: Record<HealthRule, string> = {
   milestone_at_risk: '里程碑有风险',
   stale_project: '课题停滞',
-  missing_week_review: '周复盘',
   orphaned_tasks: '遗留任务',
   dormant_theme: '议题缺少课题',
 };
 
-export type HealthTarget =
-  { type: 'project'; id: number } | { type: 'theme'; id: number } | { type: 'week'; weekKey: string };
+export type HealthTarget = { type: 'project'; id: number } | { type: 'theme'; id: number };
 
 export type HealthIssue = {
   /** 稳定的标识，例如 'stale_project:3'。 */
@@ -70,8 +65,6 @@ export type HealthSnapshot = {
   }[];
   /** 未完成的任务：只需要归属。 */
   openTasks: { projectId: number | null; themeId: number | null; status: TaskStatus }[];
-  /** 本周和上周的计划情况。 */
-  weeks: { weekKey: string; hasPlan: boolean; taskCount: number; reviewed: boolean }[];
 };
 
 const SEVERITY_ORDER: Record<HealthSeverity, number> = { danger: 0, warning: 1, info: 2 };
@@ -124,34 +117,7 @@ export function evaluateHealth(s: HealthSnapshot): HealthIssue[] {
     });
   }
 
-  // 3. 周复盘：上周有计划或任务却没复盘；本周临近结束也提醒一次。
-  const thisWeek = isoWeekKey(s.today);
-  const lastWeek = shiftWeek(thisWeek, -1);
-  for (const w of s.weeks) {
-    const active = w.hasPlan || w.taskCount > 0;
-    if (!active || w.reviewed) continue;
-    if (w.weekKey === lastWeek) {
-      issues.push({
-        key: `missing_week_review:${w.weekKey}`,
-        rule: 'missing_week_review',
-        severity: 'warning',
-        title: `上周（${w.weekKey}）还没有复盘`,
-        detail: '花十分钟回顾上周的收获和阻碍，再开始新的一周。',
-        target: { type: 'week', weekKey: w.weekKey },
-      });
-    } else if (w.weekKey === thisWeek && weekdayOf(s.today) >= T.weekReviewFromWeekday) {
-      issues.push({
-        key: `missing_week_review:${w.weekKey}`,
-        rule: 'missing_week_review',
-        severity: 'info',
-        title: '本周快结束了，记得写周复盘',
-        detail: `本周排了 ${w.taskCount} 项任务。`,
-        target: { type: 'week', weekKey: w.weekKey },
-      });
-    }
-  }
-
-  // 4. 遗留任务：课题或议题已经结束，下面还有没完成的任务。
+  // 3. 遗留任务：课题或议题已经结束，下面还有没完成的任务。
   const leftoverByProject = new Map<number, number>();
   const leftoverByTheme = new Map<number, number>();
   for (const t of s.openTasks) {
@@ -184,7 +150,7 @@ export function evaluateHealth(s: HealthSnapshot): HealthIssue[] {
     });
   }
 
-  // 5. 议题缺少课题：进行中的议题下没有进行中的课题。
+  // 4. 议题缺少课题：进行中的议题下没有进行中的课题。
   for (const th of s.themes) {
     if (th.status !== 'active') continue;
     if (daysBetween(th.createdOn, s.today) < T.themeGraceDays) continue;

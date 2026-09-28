@@ -20,13 +20,6 @@ function IssueLink({ issue, children }: { issue: HealthIssueDto; children: React
       </Link>
     );
   }
-  if (t.type === 'week') {
-    return (
-      <Link to="/week" search={{ w: t.weekKey }} className={className}>
-        {children}
-      </Link>
-    );
-  }
   return (
     <Link to="/map" className={className}>
       {children}

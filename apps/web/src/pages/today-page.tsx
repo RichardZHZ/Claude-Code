@@ -11,13 +11,13 @@ import {
 } from 'lucide-react';
 import { MAX_TOP_TASKS } from '@researchpilot/core/enums';
 import type { DayViewDto, TaskViewDto } from '@researchpilot/core/contracts';
-import { EmptyHint, Field, PageHeader, QueryView, Section } from '@/components/common';
+import { EmptyHint, PageHeader, QueryView, Section } from '@/components/common';
+import { CountdownCard } from '@/components/countdown/countdown-card';
 import { TaskItem, TaskList } from '@/components/tasks/task-item';
 import { TaskQuickAdd } from '@/components/tasks/task-quick-add';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
-import { longDate, monthDay, timeOfDay, todayString } from '@/lib/format';
+import { longDate, todayString } from '@/lib/format';
 import { useAction, useChecks, useDay, useTaskActions } from '@/lib/queries';
 
 export function TodayPage() {
@@ -255,96 +255,8 @@ function DayContent({ data }: { data: DayViewDto }) {
       </div>
 
       <div className="flex flex-col gap-6">
-        <JournalCard date={date} saved={data.plan.journal ?? ''} />
-        <ReviewCard data={data} />
+        <CountdownCard />
       </div>
     </div>
-  );
-}
-
-function JournalCard({ date, saved }: { date: string; saved: string }) {
-  const [text, setText] = useState(saved);
-  const save = useAction((journal: string) => api.put(`/days/${date}/plan`, { journal }), {
-    success: '日志已保存',
-  });
-  const dirty = text !== saved;
-
-  return (
-    <Section title="工作日志" description="做了什么、想到什么，随手记。">
-      <div className="flex flex-col gap-2">
-        <Textarea
-          aria-label="工作日志"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={6}
-          placeholder="10:30 跑完回归，系数方向和预期一致……"
-        />
-        <Button
-          className="self-end"
-          size="sm"
-          disabled={!dirty || save.isPending}
-          onClick={() => save.mutate(text)}
-        >
-          {dirty ? '保存日志' : '已保存'}
-        </Button>
-      </div>
-    </Section>
-  );
-}
-
-function ReviewCard({ data }: { data: DayViewDto }) {
-  const review = data.plan.review;
-  // 还没复盘时，用今天完成的任务预填"完成了什么"。
-  const doneToday = [...data.topTasks, ...data.scheduled]
-    .filter((t) => t.status === 'done')
-    .map((t) => t.title);
-  const [done, setDone] = useState(review?.done ?? doneToday.join('\n'));
-  const [blockers, setBlockers] = useState(review?.blockers ?? '');
-  const [tomorrow, setTomorrow] = useState(review?.tomorrow ?? '');
-  const save = useAction(() => api.put(`/days/${data.date}/review`, { done, blockers, tomorrow }), {
-    success: '复盘已保存',
-  });
-
-  return (
-    <Section
-      title="晚间复盘"
-      description={
-        data.plan.reviewedAt
-          ? `已于 ${timeOfDay(data.plan.reviewedAt)} 复盘`
-          : `${monthDay(data.date)}还没有复盘`
-      }
-      testId="day-review"
-    >
-      <form
-        className="flex flex-col gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          save.mutate();
-        }}
-      >
-        <Field label="今天完成了什么" htmlFor="review-done">
-          <Textarea id="review-done" value={done} onChange={(e) => setDone(e.target.value)} rows={3} />
-        </Field>
-        <Field label="遇到的阻碍" htmlFor="review-blockers">
-          <Textarea
-            id="review-blockers"
-            value={blockers}
-            onChange={(e) => setBlockers(e.target.value)}
-            rows={2}
-          />
-        </Field>
-        <Field label="明天先做什么" htmlFor="review-tomorrow">
-          <Textarea
-            id="review-tomorrow"
-            value={tomorrow}
-            onChange={(e) => setTomorrow(e.target.value)}
-            rows={2}
-          />
-        </Field>
-        <Button type="submit" size="sm" className="self-end" disabled={save.isPending}>
-          保存复盘
-        </Button>
-      </form>
-    </Section>
   );
 }

@@ -1,20 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { countdownParts } from '@researchpilot/core/countdown';
 import { isoWeekKey } from '@researchpilot/core/week';
 import type { TaskViewDto } from '@researchpilot/core/contracts';
+import { CountdownDigits } from '@/components/countdown/countdown-card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { deadlineLabel, useNow } from '@/lib/countdown';
 import { longDate, todayString } from '@/lib/format';
-import { useChecks, useDay, useTaskActions, useWeek } from '@/lib/queries';
+import { useChecks, useCountdowns, useDay, useTaskActions, useWeek } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 /** 小窗最多列几件事。 */
 const MAX_ITEMS = 5;
+/** 小窗顶部最多显示几个倒计时。 */
+const MAX_COUNTDOWNS = 3;
 /** 小窗不在前台时也要跟上主窗口里的修改，定时刷新。 */
 const REFRESH_MS = 30_000;
 
 /**
- * 桌面小窗：今天最重要的事（没有挑的话显示排在今天的任务），可以直接打勾；
- * 底部是本周进度和提醒数量。桌面应用把它放在一个无边框的小窗口里，贴在桌面上。
+ * 桌面小窗：顶部是议题倒计时（按秒跳动），下面是今天最重要的事（没有挑的话显示排在今天的任务），
+ * 可以直接打勾；底部是本周进度和提醒数量。桌面应用把它放在一个无边框的小窗口里，贴在桌面上。
  * 在浏览器里打开 /widget 也能看。
  */
 export function WidgetPage() {
@@ -23,6 +28,8 @@ export function WidgetPage() {
   const day = useDay(today);
   const week = useWeek(isoWeekKey(today));
   const checks = useChecks(today);
+  const countdowns = useCountdowns().data ?? [];
+  const now = useNow();
 
   // 桌面应用的小窗窗口是透明的，页面背景也要透明，只显示卡片。
   useEffect(() => {
@@ -67,7 +74,29 @@ export function WidgetPage() {
         </a>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto px-2">
+      {countdowns.length > 0 && (
+        <section
+          aria-label="倒计时"
+          data-testid="widget-countdowns"
+          className="widget-drag flex flex-col gap-2.5 border-b px-4 pb-3"
+        >
+          {countdowns.slice(0, MAX_COUNTDOWNS).map((c) => (
+            <div key={c.themeId} data-testid="widget-countdown">
+              <p className="mb-1 truncate text-xs text-muted-foreground" title={deadlineLabel(c.at)}>
+                {c.title}
+              </p>
+              <CountdownDigits parts={countdownParts(c.at, now)} />
+            </div>
+          ))}
+          {countdowns.length > MAX_COUNTDOWNS && (
+            <p className="text-xs text-muted-foreground">
+              还有 {countdowns.length - MAX_COUNTDOWNS} 个倒计时
+            </p>
+          )}
+        </section>
+      )}
+
+      <main className="min-h-0 flex-1 overflow-y-auto px-2 pt-1">
         {day.isPending ? (
           <p className="px-2 py-3 text-xs text-muted-foreground">正在加载…</p>
         ) : day.isError ? (

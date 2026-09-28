@@ -20,6 +20,14 @@ import { api } from '@/lib/api';
 import { linesToList, listToLines } from '@/lib/format';
 import { useAction } from '@/lib/queries';
 
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** ISO 时刻 → datetime-local 输入框用的本机时间 'YYYY-MM-DDTHH:mm:ss'。 */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 /** 新建或编辑研究议题。传 theme 为编辑，不传为新建。 */
 export function ThemeDialog({ theme, trigger }: { theme?: ThemeDto; trigger: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -37,6 +45,7 @@ function ThemeForm({ theme, onDone }: { theme?: ThemeDto; onDone: () => void }) 
   const [questions, setQuestions] = useState(listToLines(theme?.coreQuestions ?? []));
   const [status, setStatus] = useState<ThemeStatus>(theme?.status ?? 'active');
   const [startedAt, setStartedAt] = useState(theme?.startedAt ?? '');
+  const [countdown, setCountdown] = useState(theme?.countdownAt ? toLocalInput(theme.countdownAt) : '');
 
   const save = useAction(
     () => {
@@ -46,6 +55,8 @@ function ThemeForm({ theme, onDone }: { theme?: ThemeDto; onDone: () => void }) 
         coreQuestions: linesToList(questions),
         status,
         startedAt: startedAt || null,
+        // datetime-local 没有时区，按本机时间理解，再转成带时区的时刻。
+        countdownAt: countdown ? new Date(countdown).toISOString() : null,
       };
       return theme ? api.patch<ThemeDto>(`/themes/${theme.id}`, body) : api.post<ThemeDto>('/themes', body);
     },
@@ -118,6 +129,26 @@ function ThemeForm({ theme, onDone }: { theme?: ThemeDto; onDone: () => void }) 
           />
         </Field>
       </div>
+      <Field
+        label="倒计时截止"
+        htmlFor="theme-countdown"
+        hint="例如答辩、基金截止。设了以后，今日页、本周页和桌面小窗会按秒倒计时。留空表示不倒计时。"
+      >
+        <div className="flex gap-2">
+          <Input
+            id="theme-countdown"
+            type="datetime-local"
+            step={1}
+            value={countdown}
+            onChange={(e) => setCountdown(e.target.value)}
+          />
+          {countdown && (
+            <Button type="button" variant="ghost" onClick={() => setCountdown('')}>
+              清除
+            </Button>
+          )}
+        </div>
+      </Field>
       <DialogFooter className={theme ? 'sm:justify-between' : undefined}>
         {theme && (
           <Button type="button" variant="ghost" className="text-destructive" onClick={onDelete}>

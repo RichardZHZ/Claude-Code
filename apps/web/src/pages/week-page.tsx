@@ -4,14 +4,15 @@ import { CalendarPlus, ChevronLeft, ChevronRight, Pencil, Undo2 } from 'lucide-r
 import { isoWeekKey } from '@researchpilot/core/week';
 import { MAX_WEEK_FOCUS } from '@researchpilot/core/enums';
 import type { TaskViewDto, WeekViewDto } from '@researchpilot/core/contracts';
-import { EmptyHint, Field, PageHeader, QueryView, Section } from '@/components/common';
+import { EmptyHint, PageHeader, QueryView, Section } from '@/components/common';
+import { CountdownCard } from '@/components/countdown/countdown-card';
 import { TaskItem, TaskList } from '@/components/tasks/task-item';
 import { TaskQuickAdd } from '@/components/tasks/task-quick-add';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
-import { dueInfo, linesToList, listToLines, timeOfDay, todayString, weekRangeLabel } from '@/lib/format';
+import { dueInfo, linesToList, listToLines, todayString, weekRangeLabel } from '@/lib/format';
 import { useAction, useTaskActions, useWeek } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
@@ -247,7 +248,8 @@ function WeekContent({ data, today, isThisWeek }: { data: WeekViewDto; today: st
       </div>
 
       <div className="flex flex-col gap-6">
-        <WeekReviewCard data={data} />
+        <CountdownCard />
+        <WeekProgressCard data={data} />
       </div>
     </div>
   );
@@ -324,46 +326,23 @@ function FocusCard({ weekKey, focus }: { weekKey: string; focus: string[] }) {
   );
 }
 
-function WeekReviewCard({ data }: { data: WeekViewDto }) {
-  const review = data.plan.review;
-  const done = data.tasks.filter((t) => t.status === 'done');
-  const open = data.tasks.filter((t) => t.status !== 'done');
+/** 本周完成度和本周新关联的文献。 */
+function WeekProgressCard({ data }: { data: WeekViewDto }) {
+  const done = data.tasks.filter((t) => t.status === 'done').length;
   const total = data.tasks.length;
-  // 还没复盘时，用本周完成和未完成的任务预填。
-  const [wins, setWins] = useState(listToLines(review?.wins ?? done.map((t) => t.title)));
-  const [blockers, setBlockers] = useState(listToLines(review?.blockers ?? []));
-  const [carryOver, setCarryOver] = useState(listToLines(review?.carryOver ?? open.map((t) => t.title)));
-  const [reflection, setReflection] = useState(review?.reflection ?? '');
-  const save = useAction(
-    () =>
-      api.put(`/weeks/${data.weekKey}/review`, {
-        wins: linesToList(wins),
-        blockers: linesToList(blockers),
-        carryOver: linesToList(carryOver),
-        reflection,
-      }),
-    { success: '周复盘已保存' },
-  );
-
   return (
-    <Section
-      title="周复盘"
-      description={
-        data.plan.reviewedAt ? `已于 ${timeOfDay(data.plan.reviewedAt)} 保存` : '周末花十分钟回顾这一周。'
-      }
-      testId="week-review"
-    >
-      <div className="mb-4 flex flex-col gap-1.5">
+    <Section title="本周进度" testId="week-progress">
+      <div className="flex flex-col gap-1.5">
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>本周任务完成</span>
           <span>
-            {done.length} / {total}
+            {done} / {total}
           </span>
         </div>
-        <Progress value={total ? (done.length / total) * 100 : 0} label="本周任务完成度" />
+        <Progress value={total ? (done / total) * 100 : 0} label="本周任务完成度" />
       </div>
       {data.literature.length > 0 && (
-        <div className="mb-4" data-testid="week-literature">
+        <div className="mt-4" data-testid="week-literature">
           <p className="mb-1 text-xs font-medium text-muted-foreground">
             本周关联的文献（{data.literature.length}）
           </p>
@@ -376,39 +355,6 @@ function WeekReviewCard({ data }: { data: WeekViewDto }) {
           </ul>
         </div>
       )}
-      <form
-        className="flex flex-col gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          save.mutate();
-        }}
-      >
-        <Field label="收获与进展" htmlFor="wr-wins" hint="每行一条">
-          <Textarea id="wr-wins" value={wins} onChange={(e) => setWins(e.target.value)} rows={3} />
-        </Field>
-        <Field label="阻碍" htmlFor="wr-blockers" hint="每行一条">
-          <Textarea
-            id="wr-blockers"
-            value={blockers}
-            onChange={(e) => setBlockers(e.target.value)}
-            rows={2}
-          />
-        </Field>
-        <Field label="带入下周" htmlFor="wr-carry" hint="每行一条">
-          <Textarea id="wr-carry" value={carryOver} onChange={(e) => setCarryOver(e.target.value)} rows={2} />
-        </Field>
-        <Field label="反思" htmlFor="wr-reflection">
-          <Textarea
-            id="wr-reflection"
-            value={reflection}
-            onChange={(e) => setReflection(e.target.value)}
-            rows={3}
-          />
-        </Field>
-        <Button type="submit" size="sm" className="self-end" disabled={save.isPending}>
-          保存周复盘
-        </Button>
-      </form>
     </Section>
   );
 }

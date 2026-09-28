@@ -27,13 +27,13 @@ export const ACTIVITY_ACTIONS = [
   'unscheduled',
   'moved',
   'planned',
+  // 旧版本的工作日志和复盘留下的记录，现在不再产生，只为能读懂历史。
   'journaled',
   'reviewed',
   'promoted',
   'linked',
   'unlinked',
 ] as const;
-export const REVIEW_KINDS = ['week', 'day'] as const;
 export const RESOURCE_OWNER_TYPES = ['theme', 'project', 'task'] as const;
 export const RESOURCE_KINDS = ['url', 'zotero', 'file'] as const;
 export const PROMOTE_TYPES = ['theme', 'project', 'task'] as const;
@@ -46,7 +46,6 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type PromoteType = (typeof PROMOTE_TYPES)[number];
 export type EntityType = (typeof ENTITY_TYPES)[number];
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
-export type ReviewKind = (typeof REVIEW_KINDS)[number];
 export type ResourceOwnerType = (typeof RESOURCE_OWNER_TYPES)[number];
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 export type BackupReason = (typeof BACKUP_REASONS)[number];

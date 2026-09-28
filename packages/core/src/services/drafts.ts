@@ -1,19 +1,12 @@
-// 计划与复盘的草稿：用确定性规则挑任务、写要点，每条建议都附上理由。
+// 周计划、日计划的草稿：用确定性规则挑任务、写要点，每条建议都附上理由。
 // Claude（或其他调用方）只负责把草稿润色成自然的文字，并在用户确认后再保存。
 
-import { and, eq, gte, isNull, lt, lte, notInArray } from 'drizzle-orm';
+import { and, eq, isNull, lte, notInArray } from 'drizzle-orm';
 import type { Conn } from '../db.ts';
 import { CLOSED_PROJECT_STATUSES, MAX_TOP_TASKS, MAX_WEEK_FOCUS } from '../enums.ts';
-import { activityLog, dailyPlans, milestones, projects, weeklyPlans } from '../schema.ts';
-import type {
-  DayPlanDraft,
-  DraftTask,
-  MilestoneDue,
-  TaskView,
-  WeekPlanDraft,
-  WeekReviewDraft,
-} from '../types.ts';
-import { addDays, daysBetween, shiftWeek, startOfLocalDay, weekRange } from '../week.ts';
+import { milestones, projects } from '../schema.ts';
+import type { DayPlanDraft, DraftTask, MilestoneDue, TaskView, WeekPlanDraft } from '../types.ts';
+import { daysBetween, shiftWeek, weekRange } from '../week.ts';
 import { HEALTH_THRESHOLDS } from '../rules/health.ts';
 import { buildHealthSnapshot, getHealthReport } from './health.ts';
 import { getDayView, getWeekView } from './plans.ts';
@@ -163,12 +156,6 @@ export function draftWeekPlan(db: Conn, weekKey: string, today: string): WeekPla
   const add = (line: string) => {
     if (focus.length < MAX_WEEK_FOCUS && !focus.includes(line)) focus.push(line);
   };
-  const lastPlan = db
-    .select()
-    .from(weeklyPlans)
-    .where(eq(weeklyPlans.weekKey, shiftWeek(weekKey, -1)))
-    .get();
-  for (const line of lastPlan?.review?.carryOver ?? []) add(`${line}（上周带入）`);
   const mentionedProjects = new Set<number>();
   for (const m of upcoming) {
     const when = m.dueDate! <= week.end ? `${monthDay(m.dueDate!)}到期` : `下周${monthDay(m.dueDate!)}到期`;
@@ -223,68 +210,5 @@ export function draftDayPlan(db: Conn, date: string, today: string = date): DayP
     suggestedTop: top,
     otherCandidates: ranked.filter((d) => !topIds.has(d.task.id)).slice(0, 7),
     doneToday: [...day.topTasks, ...day.scheduled].filter((t) => t.status === 'done'),
-  };
-}
-
-// ---------- 周复盘草稿 ----------
-
-export function draftWeekReview(db: Conn, weekKey: string): WeekReviewDraft {
-  const week = getWeekView(db, weekKey);
-  const from = startOfLocalDay(week.start);
-  const to = startOfLocalDay(addDays(week.end, 1));
-  const done = week.tasks.filter((t) => t.status === 'done');
-  const open = week.tasks.filter((t) => t.status !== 'done');
-
-  const milestonesCompleted = db
-    .select({ payload: activityLog.payload })
-    .from(activityLog)
-    .where(
-      and(
-        eq(activityLog.entityType, 'milestone'),
-        eq(activityLog.action, 'completed'),
-        gte(activityLog.at, from),
-        lt(activityLog.at, to),
-      ),
-    )
-    .all()
-    .map((r) => r.payload?.title)
-    .filter((t): t is string => typeof t === 'string');
-
-  const dayBlockers = db
-    .select({ date: dailyPlans.date, review: dailyPlans.review })
-    .from(dailyPlans)
-    .where(and(gte(dailyPlans.date, week.start), lte(dailyPlans.date, week.end)))
-    .orderBy(dailyPlans.date)
-    .all()
-    .filter((d) => d.review?.blockers?.trim())
-    .map((d) => `${monthDay(d.date)}：${d.review!.blockers.trim()}`);
-
-  const context = (t: TaskView) => t.projectTitle ?? (t.themeTitle ? `议题 ${t.themeTitle}` : '');
-  const literature = week.literature.map((r) => r.label ?? r.ref);
-
-  const wins = [
-    ...milestonesCompleted.map((m) => `达成里程碑"${m}"`),
-    ...done.map((t) => `完成"${t.title}"（${context(t)}）`),
-  ];
-  if (literature.length > 0) wins.push(`关联了 ${literature.length} 篇文献`);
-
-  return {
-    weekKey,
-    start: week.start,
-    end: week.end,
-    focus: week.plan.focus,
-    stats: { done: done.length, total: week.tasks.length },
-    milestonesCompleted,
-    literature,
-    existingReview: week.plan.review,
-    suggested: {
-      wins,
-      blockers: [
-        ...open.filter((t) => t.status === 'blocked').map((t) => `"${t.title}"受阻`),
-        ...dayBlockers,
-      ],
-      carryOver: open.filter((t) => t.status !== 'blocked').map((t) => t.title),
-      reflection: '',
-    },
   };
 }
