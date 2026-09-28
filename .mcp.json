@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "researchpilot": {
+      "command": "node",
+      "args": ["${CLAUDE_PROJECT_DIR:-.}/apps/mcp/bin/researchpilot-mcp.mjs"],
+      "env": {
+        "ZOTERO_URL": "${ZOTERO_URL:-http://127.0.0.1:23119}"
+      }
+    }
+  }
+}

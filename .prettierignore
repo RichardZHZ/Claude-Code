@@ -1,0 +1,8 @@
+node_modules
+dist
+.turbo
+data
+pnpm-lock.yaml
+packages/core/drizzle
+.claude
+*.md

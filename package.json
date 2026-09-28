@@ -1,0 +1,40 @@
+{
+  "name": "researchpilot",
+  "private": true,
+  "description": "科研管理小助理：研究议题、课题、周计划、日计划",
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "pnpm build && pnpm --filter @researchpilot/api start",
+    "typecheck": "turbo run typecheck && tsc -p tsconfig.e2e.json",
+    "test": "turbo run test",
+    "e2e": "playwright test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
+    "db:generate": "pnpm --filter @researchpilot/core db:generate",
+    "db:migrate": "pnpm --filter @researchpilot/core db:migrate",
+    "db:seed": "pnpm --filter @researchpilot/core db:seed",
+    "db:backup": "pnpm --filter @researchpilot/core db:backup",
+    "db:restore": "pnpm --filter @researchpilot/core db:restore"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.4",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "turbo": "^2.11.5",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.1"
+  }
+}

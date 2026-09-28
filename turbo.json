@@ -1,0 +1,31 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "DB_PATH",
+        "PORT",
+        "HOST",
+        "API_PORT",
+        "WEB_PORT",
+        "ZOTERO_URL",
+        "BACKUP_DIR",
+        "BACKUP_KEEP",
+        "BACKUP_INTERVAL_HOURS",
+        "AUTO_BACKUP"
+      ]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    },
+    "test": {
+      "dependsOn": ["^typecheck"]
+    }
+  }
+}
