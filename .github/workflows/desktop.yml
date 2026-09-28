@@ -1,6 +1,7 @@
 # 在 GitHub 的 macOS 机器上打包桌面应用（Apple 芯片 arm64、Intel x64 两个 .dmg）。
 # - 拉取请求：打包并试启动，安装包作为本次运行的附件（Artifacts）可下载。
-# - 推送 v 开头的标签（如 v0.1.0）：另外发布到 GitHub Releases。
+# - 发布版本：在 Actions 页面手动运行本流程并填写版本号（如 v0.1.0），或推送 v 开头的标签。
+#   安装包会发布到 GitHub Releases，版本号必须和 apps/desktop/package.json 的 version 一致。
 name: Desktop app
 
 on:
@@ -13,6 +14,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      release:
+        description: '要发布的版本号，例如 v0.1.0。留空则只打包、不发布。'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -28,6 +34,19 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      - name: Check release version
+        id: version
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release != '')
+        env:
+          TAG: ${{ inputs.release || github.ref_name }}
+        run: |
+          expected="v$(node -p "require('./apps/desktop/package.json').version")"
+          if [ "$TAG" != "$expected" ]; then
+            echo "::error::版本号 $TAG 和 apps/desktop/package.json 里的 $expected 不一致"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Package
         run: pnpm desktop:package --mac --arch arm64,x64
@@ -68,7 +87,29 @@ jobs:
           if-no-files-found: error
 
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.version.outputs.tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          # 标签不存在时，在本次构建的提交上创建。
+          target_commitish: ${{ github.sha }}
+          name: 科研小助理 ${{ steps.version.outputs.tag }}
           files: apps/desktop/release/*.dmg
+          body: |
+            ## 下载
+
+            | 你的 Mac | 下载 |
+            | --- | --- |
+            | Apple 芯片（M1 及以后） | `ResearchPilot-*-arm64.dmg` |
+            | Intel 芯片 | `ResearchPilot-*-x64.dmg` |
+
+            不确定的话：左上角苹果菜单 → "关于本机"，看"芯片"一栏。
+
+            ## 安装
+
+            1. 双击 `.dmg`，把"科研小助理"拖进"应用程序"文件夹。
+            2. 第一次打开会被系统拦下（应用没有 Apple 开发者签名）。任选一种方法放行，只需一次：
+               - "系统设置 → 隐私与安全性"，在页面下方点"仍要打开"；
+               - 或在终端运行：`xattr -dr com.apple.quarantine "/Applications/科研小助理.app"`
+
+            数据保存在 `~/Library/Application Support/ResearchPilot/`，每天自动备份。在 Claude Code 里使用：菜单"帮助 → 在 Claude Code 中使用…"。详见 [docs/DEPLOY.md](https://github.com/${{ github.repository }}/blob/main/docs/DEPLOY.md)。

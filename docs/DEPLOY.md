@@ -56,7 +56,12 @@ pnpm desktop                                     # 不打包，直接用开发�
 pnpm desktop:package --mac --arch arm64,x64      # 生成 .dmg，在 apps/desktop/release/ 里
 ```
 
-仓库里的 GitHub Actions（`.github/workflows/desktop.yml`）会在 macOS 机器上自动打包并试启动：每个拉取请求的运行结果里可以下载安装包；推送 `v` 开头的标签（例如 `v0.1.0`）时，安装包会发布到 Releases 页面。
+仓库里的 GitHub Actions（`.github/workflows/desktop.yml`）会在 macOS 机器上自动打包并试启动，每个拉取请求的运行结果里可以下载安装包。
+
+发布新版本：
+1. 把 `apps/desktop/package.json` 的 `version` 改成新版本号（例如 `0.2.0`），合并到主分支。
+2. 在 GitHub 仓库的 Actions 页面选 "Desktop app" → "Run workflow"，分支选 `main`，版本号填 `v0.2.0`。也可以直接推送 `v0.2.0` 标签。
+3. 打包完成后，安装包出现在 Releases 页面。版本号和 `package.json` 不一致时流程会报错，不会发布。
 
 ## 本机直接运行
 
