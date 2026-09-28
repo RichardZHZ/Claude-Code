@@ -135,9 +135,9 @@ DailyPlan  日计划 ── 从本周任务中选 Top 3，当日日志，晚间�
 - 主键用自增整数而不是 UUID，方便在界面和 Claude 对话里直接说"任务 12"。
 - 状态类枚举只在应用层校验，数据库层只对"任务必须有归属"和"优先级 1–3"加了 CHECK 约束，避免以后增减枚举值时要重建表。
 
-### Phase 1：MVP —— 目标链跑通（核心）
+### Phase 1：MVP —— 目标链跑通 ✅ 已完成
 1. core：themes / projects / milestones / tasks 服务 + Vitest 单测
-2. api：REST 路由（`/themes`, `/projects`, `/tasks`, `/plans/week/:key`, `/plans/day/:date`, `/inbox`）
+2. api：REST 路由（`/themes`, `/projects`, `/tasks`, `/weeks/:weekKey`, `/days/:date`, `/inbox`）
 3. web：
    - 议题地图页（树 + 进度条）
    - 课题详情页（Kanban + 里程碑）
@@ -145,6 +145,16 @@ DailyPlan  日计划 ── 从本周任务中选 Top 3，当日日志，晚间�
    - 今日页（Top 3 + 日志 + 昨日待接手）
    - 收件箱
 4. Playwright：新建议题→课题→任务→排入本周→排入今日→完成 的端到端流
+
+实施中的调整与补充：
+- 周、日接口路径改为更短的 `/weeks/:weekKey` 和 `/days/:date`，完整列表见 `docs/API.md`。
+- 前后端共享 `packages/core/src/contracts.ts`（输入校验与返回类型）；前端只导入类型，枚举从 `enums.ts` 导入，避免把 zod 打包进前端。ESLint 规则会拦住误用。
+- 排期规则：排到某天会自动确定所在周；换到别的周会取消原来的具体日期；设为"最重要的事"会自动排到当天。
+- "待接手"不限于昨天或上周，而是所有更早日期或更早周里没做完的任务。
+- 周复盘、日复盘在还没填写时，用本周或当天完成、未完成的任务预填，保存后覆盖。复盘的不可变历史记录仍按计划放在第二阶段。
+- 看板用浏览器原生拖放；手机上拖放不方便，所以每张卡片另有菜单可以切换状态、加入本周、排到今天。
+- 侧边栏加了"随手记"输入框，任何页面都能一键记进收件箱。
+- `activity_log` 表已建好，但写入仍按计划在第二阶段接入。
 
 ### Phase 2：复盘与健康
 1. `rules/health.ts` 五条规则 + 面板

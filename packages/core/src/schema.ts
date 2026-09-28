@@ -1,5 +1,15 @@
 import { sql } from 'drizzle-orm';
 import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+  ENTITY_TYPES,
+  PROJECT_KINDS,
+  PROJECT_STATUSES,
+  PROMOTE_TYPES,
+  RESOURCE_KINDS,
+  RESOURCE_OWNER_TYPES,
+  TASK_STATUSES,
+  THEME_STATUSES,
+} from './enums.ts';
 
 // 约定：
 // - 日期（没有时刻）一律存为 'YYYY-MM-DD' 文本，便于按天比较和展示。
@@ -15,14 +25,6 @@ const timestamps = {
     .$defaultFn(() => new Date())
     .$onUpdateFn(() => new Date()),
 };
-
-export const THEME_STATUSES = ['active', 'dormant', 'closed'] as const;
-export const PROJECT_KINDS = ['paper', 'grant', 'thesis_chapter', 'experiment', 'other'] as const;
-export const PROJECT_STATUSES = ['idea', 'active', 'paused', 'submitted', 'done', 'dropped'] as const;
-export const TASK_STATUSES = ['todo', 'doing', 'blocked', 'done'] as const;
-export const ENTITY_TYPES = ['theme', 'project', 'milestone', 'task', 'weekly_plan', 'daily_plan'] as const;
-export const RESOURCE_OWNER_TYPES = ['theme', 'project', 'task'] as const;
-export const RESOURCE_KINDS = ['url', 'zotero', 'file'] as const;
 
 /** 研究议题：长期、开放式的研究方向，可持续多年。 */
 export const themes = sqliteTable('themes', {
@@ -145,7 +147,7 @@ export const dailyPlans = sqliteTable('daily_plans', {
 export const inboxItems = sqliteTable('inbox_items', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   content: text('content').notNull(),
-  promotedType: text('promoted_type', { enum: ['theme', 'project', 'task'] }),
+  promotedType: text('promoted_type', { enum: PROMOTE_TYPES }),
   promotedId: integer('promoted_id'),
   ...timestamps,
 });

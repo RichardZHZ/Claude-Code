@@ -32,6 +32,20 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // 前端只能从 contracts 导入类型；运行时值（枚举、常量）从 enums 导入，避免把 zod 打包进来。
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@researchpilot/core/contracts',
+              message: '前端请用 import type；枚举和常量从 @researchpilot/core/enums 导入。',
+              allowTypeImports: true,
+            },
+            { name: '@researchpilot/core', message: '这是服务端入口，前端不能导入。' },
+          ],
+        },
+      ],
     },
   },
   {

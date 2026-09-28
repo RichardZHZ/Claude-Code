@@ -5,6 +5,10 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import * as schema from './schema.ts';
 
 export type Db = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
+/** 事务内的连接。 */
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+/** 服务层函数接受普通连接或事务，便于组合成更大的事务。 */
+export type Conn = Db | Tx;
 
 /**
  * 打开 SQLite 数据库。传 ':memory:' 得到内存库（测试用）。

@@ -1,6 +1,12 @@
 import { Hono } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
-import { isoWeekKey, pingDb, toDateString, type Db } from '@researchpilot/core';
+import { DomainError, isoWeekKey, pingDb, toDateString, type Db } from '@researchpilot/core';
+import { inboxRoutes } from './routes/inbox.ts';
+import { planRoutes } from './routes/plans.ts';
+import { projectRoutes } from './routes/projects.ts';
+import { taskRoutes } from './routes/tasks.ts';
+import { themeRoutes } from './routes/themes.ts';
 
 export type AppOptions = {
   db: Db;
@@ -23,8 +29,21 @@ export function createApp({ db, today = () => toDateString(new Date()), log = fa
     });
   });
 
+  app.route('/', themeRoutes(db));
+  app.route('/', projectRoutes(db));
+  app.route('/', taskRoutes(db));
+  app.route('/', planRoutes(db));
+  app.route('/', inboxRoutes(db));
+
   app.notFound((c) => c.json({ error: '未找到该接口' }, 404));
   app.onError((err, c) => {
+    if (err instanceof DomainError) {
+      return c.json({ error: err.message }, err.code === 'not_found' ? 404 : 400);
+    }
+    if (err instanceof HTTPException) {
+      const message = err.status === 400 ? '请求内容不是合法的 JSON' : err.message || '请求有误';
+      return c.json({ error: message }, err.status);
+    }
     console.error(err);
     return c.json({ error: '服务器内部错误' }, 500);
   });

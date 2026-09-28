@@ -55,9 +55,39 @@ export function weekRange(weekKey: string): { start: string; end: string } {
   return { start: formatUtc(start), end: formatUtc(start + 6 * DAY_MS) };
 }
 
+/** 是否为合法的 'YYYY-MM-DD' 日期。 */
+export function isValidDate(date: string): boolean {
+  try {
+    parseDate(date);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 是否为合法的 ISO 周编号 'YYYY-Www'。 */
+export function isValidWeekKey(weekKey: string): boolean {
+  try {
+    weekRange(weekKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** 日期加减天数。 */
 export function addDays(date: string, days: number): string {
   return formatUtc(parseDate(date) + days * DAY_MS);
+}
+
+/** 星期几：周一为 0，周日为 6。 */
+export function weekdayOf(date: string): number {
+  return isoWeekday(parseDate(date));
+}
+
+/** 从 from 到 to 相差多少天（to 在后为正）。 */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((parseDate(to) - parseDate(from)) / DAY_MS);
 }
 
 /** 相邻周：offset 为 -1 表示上周，1 表示下周。 */

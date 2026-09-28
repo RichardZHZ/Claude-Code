@@ -1,30 +1,40 @@
 # CLAUDE.md
 
-科研小助理（ResearchPilot）：单用户、本地运行的科研管理工具。长期目标（研究议题、课题）与短期计划（周计划、日计划）通过"任务"串联。完整规划见 `docs/DEV_PLAN.md`。
+科研小助理（ResearchPilot）：单用户、本地运行的科研管理工具。长期目标（研究议题、课题）与短期计划（周计划、日计划）通过"任务"串联。完整规划见 `docs/DEV_PLAN.md`，接口见 `docs/API.md`。
 
 ## 命令
 
 - `pnpm install`：安装依赖（pnpm workspaces + Turborepo）
 - `pnpm dev`：同时启动 API（127.0.0.1:8787）与前端（localhost:5173，/api 代理到 API）
 - `pnpm check`：lint + prettier + typecheck + test，提交前必须通过
+- `pnpm e2e`：Playwright 端到端测试，自带临时数据库和独立端口（8799/5199）。云环境里用 `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium pnpm e2e`
 - `pnpm --filter @researchpilot/core test`：只跑某个包的测试
 - `pnpm db:generate`：改完 `packages/core/src/schema.ts` 后生成迁移；`pnpm db:seed`：写示例数据
 
 ## 结构与分层
 
-- `packages/core`：唯一放业务逻辑的地方。表结构（Drizzle + better-sqlite3）、迁移、日期与 ISO 周工具、服务层、健康规则。直接以 TS 源码导出，不需要构建。
-- `apps/api`：Hono，只做路由、参数校验和序列化，调用 core。`createApp({ db, today })` 可注入数据库和"今天"，测试用 `app.request()`。
-- `apps/web`：React 19 + Vite + Tailwind v4 + shadcn/ui（new-york 风格）。路径别名 `@/` 指向 `src/`。
+- `packages/core`：唯一放业务逻辑的地方。
+  - `schema.ts` 表结构；`enums.ts` 状态取值与中文名；`week.ts` 日期与 ISO 周工具。
+  - `contracts.ts` 前后端共享的 zod 输入校验和 JSON 返回类型（`Wire<T>` 把 Date 转成字符串）。
+  - `types.ts` 服务层返回的视图类型；`errors.ts` 的 `DomainError` 由 API 映射为 400/404。
+  - `services/` 按领域划分：tasks、themes、projects、milestones、map、owners、plans、inbox。函数第一个参数是 `Conn`（连接或事务）。
+  - 入口：`@researchpilot/core`（服务端）、`/contracts`、`/enums`、`/week`（前端可用）。
+- `apps/api`：Hono，只做路由、参数校验（`validate.ts`）和序列化，调用 core。路由按领域放在 `src/routes/`。`createApp({ db, today })` 可注入数据库和"今天"，测试用 `app.request()`。
+- `apps/web`：React 19 + Vite + Tailwind v4 + shadcn/ui（new-york 风格）+ TanStack Router（代码式路由，`src/router.tsx`）+ TanStack Query。路径别名 `@/` 指向 `src/`。
+  - `src/pages/` 五个页面；`src/components/tasks/` 任务相关的复用组件；`src/lib/queries.ts` 查询与写操作（`useAction` 成功后刷新全部数据并弹提示）。
 - 之后的 `apps/mcp` 同样只调用 core。API 和 web 不直接依赖 drizzle-orm。
 
 ## 约定
 
 - 界面文字、注释、错误信息用中文；代码标识符、文件名、提交信息用英文。
 - 日期（无时刻）存 `'YYYY-MM-DD'` 文本；时刻存毫秒时间戳；周用 ISO 周编号 `'YYYY-Www'`，一律用 `packages/core/src/week.ts` 的函数处理，不要手写日期运算。
-- 任务必须挂在课题或议题下（数据库 CHECK 约束保证）。周计划、日计划只引用任务，不复制任务。
+- 任务必须挂在课题或议题下（数据库 CHECK 约束 + 服务层校验）。周计划、日计划只引用任务，不复制任务。
+- 排期规则集中在 `services/tasks.ts` 的 `updateTask`：排到某天会确定所在周；换周会取消具体日期。
 - 课题进度等派生数据实时计算，不存库。
 - 提醒、评分、健康判断用确定性代码实现；AI 只负责起草和润色文字。
+- 前端只能 `import type` 自 `@researchpilot/core/contracts`，运行时的枚举和常量从 `/enums` 导入（ESLint 会检查），避免把 zod 打包进前端。
 - 表结构变更：改 `schema.ts` → `pnpm db:generate --name <描述>` → 提交生成的 `packages/core/drizzle/` 文件。不要手改已提交的迁移。
 - TypeScript 锁定 6.0.x，因为 typescript-eslint 尚不支持 7.x。
 - shadcn 组件在 `apps/web/src/components/ui/`。可以用 `pnpm dlx shadcn@latest add <组件>` 添加，也可以手动复制官方源码。
+- 端到端测试用 `data-testid`、可访问名称（aria-label）定位元素；改界面文字时同步更新 `e2e/`。
 - Markdown 文件不经过 Prettier 格式化（中文表格对齐后难以编辑）。

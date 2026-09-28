@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, isoWeekKey, shiftWeek, weekRange } from './week.ts';
+import { addDays, daysBetween, isoWeekKey, shiftWeek, weekdayOf, weekRange } from './week.ts';
+
+describe('weekdayOf / daysBetween', () => {
+  it('周一为 0，周日为 6', () => {
+    expect(weekdayOf('2026-09-28')).toBe(0);
+    expect(weekdayOf('2026-10-04')).toBe(6);
+  });
+
+  it('相差天数，跨月跨年', () => {
+    expect(daysBetween('2026-09-28', '2026-10-02')).toBe(4);
+    expect(daysBetween('2026-10-02', '2026-09-28')).toBe(-4);
+    expect(daysBetween('2026-12-31', '2027-01-01')).toBe(1);
+  });
+});
 
 describe('isoWeekKey', () => {
   it.each([

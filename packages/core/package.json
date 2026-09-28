@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema.ts",
+    "./contracts": "./src/contracts.ts",
+    "./enums": "./src/enums.ts",
     "./week": "./src/week.ts"
   },
   "scripts": {
@@ -17,7 +18,8 @@
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
-    "drizzle-orm": "^0.45.3"
+    "drizzle-orm": "^0.45.3",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
