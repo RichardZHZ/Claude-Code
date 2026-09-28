@@ -77,8 +77,6 @@ DailyPlan  日计划 ── 从本周任务中选 Top 3，当日日志，晚间�
 | 测试 | Vitest（core/api）、Playwright（web 关键流程） | |
 | 打包 | Dockerfile + docker-compose；后期可选 Tauri 桌面壳 | |
 
-> 备选方案（不推荐但可切换）：纯 Obsidian 库 + 插件（学 ResearchFlow）。优点是零后端；缺点是层级查询、健康规则、MCP 都要在插件里重做，且锁定 Obsidian。若用户日常已重度使用 Obsidian，可在第二阶段加 **Markdown 双向导出**兼顾。
-
 ### 仓库结构
 
 ```
@@ -145,8 +143,7 @@ DailyPlan  日计划 ── 从本周任务中选 Top 3，当日日志，晚间�
 1. `rules/health.ts` 五条规则 + 面板
 2. 周/日复盘不可变记录、历史时间线视图
 3. `activity_log` 接入所有写操作
-4. Markdown 导出（每个议题/课题一个 `.md`，含 frontmatter，可放进 Obsidian）
-5. ICS 导出里程碑截止日
+4. ICS 导出里程碑截止日
 
 ### Phase 3：小助理（MCP + Zotero）
 1. `apps/mcp`：暴露 `list_themes / list_tasks / plan_week / plan_day / review_week / health_report / capture_inbox` 等工具，直接复用 core
@@ -169,9 +166,12 @@ DailyPlan  日计划 ── 从本周任务中选 Top 3，当日日志，晚间�
 - MCP：`claude mcp add` 后在 Claude Code 里执行"帮我生成下周计划"，确认返回草稿引用了真实任务 id
 - Zotero：开启本地 API 后 `curl localhost:23119/api/users/0/items?limit=1` 有返回，UI 中可搜索并挂接
 
-## 已做的假设（用户未在线确认）
+## 已确认的决定
+
+- 独立 Web 应用，不依赖也不兼容 Obsidian（用户不使用 Obsidian），不做 Markdown 导出
+
+## 仍待确认的假设
 
 1. 单用户、本地优先，不做登录与多租户
-2. Web UI 而非 Obsidian 插件；用 Markdown 导出兼容 Obsidian
-3. 技术栈 TypeScript 全栈（用户环境同时有 Node 与 Python，选 TS 是为了服务层在 Web/MCP 间复用）
-4. 界面语言中文优先，代码与标识符英文
+2. 技术栈 TypeScript 全栈（用户环境同时有 Node 与 Python，选 TS 是为了服务层在 Web/MCP 间复用）
+3. 界面语言中文优先，代码与标识符英文
