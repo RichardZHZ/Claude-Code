@@ -7,6 +7,7 @@ import {
   MAX_WEEK_FOCUS,
   PROJECT_KINDS,
   PROJECT_STATUSES,
+  RESOURCE_OWNER_TYPES,
   REVIEW_KINDS,
   TASK_STATUSES,
   THEME_STATUSES,
@@ -15,6 +16,7 @@ import { isValidDate, isValidWeekKey } from './week.ts';
 import type * as S from './schema.ts';
 import type * as V from './types.ts';
 import type * as H from './rules/health.ts';
+import type * as Z from './zotero.ts';
 
 export * from './enums.ts';
 
@@ -195,6 +197,40 @@ export const reviewsQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
+// ---------- 资源与 Zotero ----------
+
+const ownerFields = {
+  ownerType: z.enum(RESOURCE_OWNER_TYPES),
+  ownerId: id,
+};
+
+/** 添加链接（URL）或本地文件路径。Zotero 文献用 linkZoteroInput。 */
+export const addResourceInput = z
+  .object({
+    ...ownerFields,
+    kind: z.enum(['url', 'file']),
+    ref: z.string().trim().min(1, '地址不能为空').max(2000, '地址太长'),
+    label: z.string().trim().max(200, '名称不能超过 200 字').optional(),
+  })
+  .refine((v) => v.kind !== 'url' || /^https?:\/\/\S+$/i.test(v.ref), {
+    message: '链接需要以 http:// 或 https:// 开头',
+    path: ['ref'],
+  });
+export const linkZoteroInput = z.object({
+  ...ownerFields,
+  itemKey: z.string().regex(/^[A-Z0-9]{8}$/, 'Zotero 条目 key 应为 8 位大写字母或数字'),
+});
+export const resourceQuery = z.object({
+  ownerType: z.enum(RESOURCE_OWNER_TYPES),
+  ownerId: z.coerce.number().int().positive(),
+});
+export const zoteroSearchQuery = z.object({
+  q: z.string().trim().min(1, '请输入要搜索的内容').max(200),
+  limit: z.coerce.number().int().min(1).max(25).optional(),
+});
+export type AddResourceInput = z.infer<typeof addResourceInput>;
+export type LinkZoteroInput = z.infer<typeof linkZoteroInput>;
+
 // ---------- 接口返回的 JSON 类型 ----------
 
 /** 把服务层类型转成 JSON 传输后的形态：Date 变成 ISO 字符串。 */
@@ -234,3 +270,11 @@ export type ActivityDto = Wire<V.ActivityView>;
 export type ReviewEntryDto = Wire<V.ReviewEntry>;
 export type WeekReviewStats = S.WeekReviewStats;
 export type DayReviewStats = S.DayReviewStats;
+export type ResourceDto = Wire<V.ResourceView>;
+export type ResourceMeta = S.ResourceMeta;
+export type ZoteroItemDto = Z.ZoteroItem;
+export type ZoteroStatusDto = Z.ZoteroStatus;
+export type DraftTaskDto = Wire<V.DraftTask>;
+export type WeekPlanDraftDto = Wire<V.WeekPlanDraft>;
+export type DayPlanDraftDto = Wire<V.DayPlanDraft>;
+export type WeekReviewDraftDto = Wire<V.WeekReviewDraft>;

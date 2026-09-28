@@ -8,7 +8,8 @@
     "./contracts": "./src/contracts.ts",
     "./enums": "./src/enums.ts",
     "./week": "./src/week.ts",
-    "./health-rules": "./src/rules/health.ts"
+    "./health-rules": "./src/rules/health.ts",
+    "./testing": "./src/testing/fake-zotero.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

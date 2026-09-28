@@ -91,3 +91,16 @@
 - **周复盘**：上周有计划或任务却没复盘；本周从周五起也提醒一次。
 - **遗留任务**：已完成或放弃的课题、已结束的议题下还有未完成的任务。
 - **议题缺少课题**：进行中的议题下没有进行中的课题（议题建立 7 天后才检查）。
+
+## 文献与链接
+
+| 方法 | 路径 | 作用 |
+| --- | --- | --- |
+| GET | `/resources?ownerType=&ownerId=` | 某个议题、课题或任务的文献与链接；`ownerType` 为 `theme` / `project` / `task` |
+| POST | `/resources` | 添加链接或文件路径 `{ ownerType, ownerId, kind: "url" \| "file", ref, label? }` |
+| POST | `/resources/zotero` | 从 Zotero 关联文献 `{ ownerType, ownerId, itemKey }`，会保存作者、年份、标题快照 |
+| DELETE | `/resources/:id` | 移除 |
+| GET | `/zotero/status` | Zotero 是否可用 `{ available, message }` |
+| GET | `/zotero/search?q=&limit=` | 在本机 Zotero 里按标题、作者、年份搜索（后端代理，浏览器不能直接访问 Zotero） |
+
+Zotero 没运行或没开启本地 API 时，`/zotero/*` 和 `/resources/zotero` 返回 503，`error` 里写明开启方法。同一对象重复关联同一条目返回 400。周视图 `GET /weeks/:weekKey` 的 `literature` 字段是本周新关联的文献。

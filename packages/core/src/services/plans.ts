@@ -16,6 +16,7 @@ import {
 import type { DayView, WeekView } from '../types.ts';
 import { addDays, isoWeekKey, shiftWeek, weekRange } from '../week.ts';
 import { logActivity } from './activity.ts';
+import { literatureLinkedInWeek } from './resources.ts';
 import {
   projectStillOpen,
   queryTaskViews,
@@ -60,6 +61,7 @@ export function getWeekView(db: Conn, weekKey: string): WeekView {
     carryOver: unfinishedBeforeWeek(db, weekKey),
     backlog: queryTaskViews(db, and(isNull(tasks.weekKey), ne(tasks.status, 'done'), projectStillOpen)),
     milestonesDue,
+    literature: literatureLinkedInWeek(db, weekKey),
   };
 }
 
@@ -84,6 +86,7 @@ export function saveWeekReview(db: Conn, weekKey: string, review: WeekReviewInpu
     total: before.tasks.length,
     completed: before.tasks.filter((t) => t.status === 'done').map((t) => t.title),
     unfinished: before.tasks.filter((t) => t.status !== 'done').map((t) => t.title),
+    literature: before.literature.map((r) => r.label ?? r.ref),
   };
   const now = new Date();
   db.transaction((tx) => {

@@ -6,6 +6,7 @@ import type { ProjectSummaryDto, ThemeMapEntryDto } from '@researchpilot/core/co
 import { EmptyHint, PageHeader, QueryView } from '@/components/common';
 import { CalendarExport } from '@/components/goals/calendar-export';
 import { ProjectDialog } from '@/components/goals/project-dialog';
+import { ResourcesPanel } from '@/components/resources/resources-panel';
 import { ThemeDialog } from '@/components/goals/theme-dialog';
 import { TaskItem, TaskList } from '@/components/tasks/task-item';
 import { TaskQuickAdd } from '@/components/tasks/task-quick-add';
@@ -155,6 +156,14 @@ function ThemeCard({ theme, today }: { theme: ThemeMapEntryDto; today: string })
               placeholder="不属于具体课题的任务，例如读一篇综述…"
               label={`"${theme.title}"下的新任务`}
             />
+          </div>
+        </details>
+        <details className="rounded-md border px-3 py-2" data-testid="theme-resources">
+          <summary className="cursor-pointer text-sm text-muted-foreground select-none">
+            议题的文献与资源
+          </summary>
+          <div className="mt-2">
+            <ResourcesPanel ownerType="theme" ownerId={theme.id} ownerTitle={theme.title} />
           </div>
         </details>
       </CardContent>

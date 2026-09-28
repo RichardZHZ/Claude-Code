@@ -4,7 +4,7 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "passThroughEnv": ["DB_PATH", "PORT", "HOST", "API_PORT", "WEB_PORT"]
+      "passThroughEnv": ["DB_PATH", "PORT", "HOST", "API_PORT", "WEB_PORT", "ZOTERO_URL"]
     },
     "build": {
       "dependsOn": ["^build"],

@@ -4,6 +4,7 @@ import type { Conn } from '../db.ts';
 import { notFound } from '../errors.ts';
 import { themes, type NewTheme, type Theme } from '../schema.ts';
 import { diffFields, logActivity } from './activity.ts';
+import { pruneOrphanResources } from './resources.ts';
 
 export function listThemes(db: Conn): Theme[] {
   return db
@@ -66,6 +67,7 @@ export function updateTheme(db: Conn, id: number, patch: UpdateThemeInput): Them
 export function deleteTheme(db: Conn, id: number): void {
   const theme = getTheme(db, id);
   db.delete(themes).where(eq(themes.id, id)).run();
+  pruneOrphanResources(db);
   logActivity(db, {
     entityType: 'theme',
     entityId: id,

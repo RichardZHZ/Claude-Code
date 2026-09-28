@@ -2,6 +2,9 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { toast } from 'sonner';
 import type {
   ActivityDto,
+  ResourceDto,
+  ResourceOwnerType,
+  ZoteroItemDto,
   CreateTaskInput,
   HealthReportDto,
   ReviewEntryDto,
@@ -51,6 +54,25 @@ export const useInbox = () =>
 
 export const useOwners = () =>
   useQuery({ queryKey: ['owners'], queryFn: ({ signal }) => api.get<OwnerOptionsDto>('/owners', signal) });
+
+/** 挂在议题、课题或任务上的文献与链接。 */
+export const useResources = (ownerType: ResourceOwnerType, ownerId: number) =>
+  useQuery({
+    queryKey: ['resources', ownerType, ownerId],
+    queryFn: ({ signal }) =>
+      api.get<ResourceDto[]>(`/resources?ownerType=${ownerType}&ownerId=${ownerId}`, signal),
+  });
+
+/** 在本机 Zotero 里搜索文献（经后端代理）。 */
+export const useZoteroSearch = (query: string) =>
+  useQuery({
+    queryKey: ['zotero-search', query],
+    queryFn: ({ signal }) =>
+      api.get<ZoteroItemDto[]>(`/zotero/search?q=${encodeURIComponent(query)}&limit=15`, signal),
+    enabled: query.trim().length > 0,
+    retry: false,
+    staleTime: 60_000,
+  });
 
 /** 健康检查提醒。today 取本机日期，避免服务端时区不同导致差一天。 */
 export const useChecks = (today: string) =>

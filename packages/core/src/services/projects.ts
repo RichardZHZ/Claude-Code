@@ -13,6 +13,7 @@ import {
 } from '../schema.ts';
 import type { MilestoneView, ProjectDetail } from '../types.ts';
 import { diffFields, logActivity } from './activity.ts';
+import { pruneOrphanResources } from './resources.ts';
 import { progressFromTasks } from './progress.ts';
 import { queryTaskViews } from './tasks.ts';
 
@@ -113,6 +114,7 @@ export function updateProject(db: Conn, id: number, patch: UpdateProjectInput): 
 export function deleteProject(db: Conn, id: number): void {
   const project = getProject(db, id);
   db.delete(projects).where(eq(projects.id, id)).run();
+  pruneOrphanResources(db);
   logActivity(db, {
     entityType: 'project',
     entityId: id,

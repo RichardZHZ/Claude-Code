@@ -110,6 +110,7 @@ const ENTITY_LABELS: Record<EntityType, string> = {
   weekly_plan: '周计划',
   daily_plan: '日计划',
   inbox_item: '收件箱记录',
+  resource: '资源',
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -187,6 +188,12 @@ export function describeActivity(e: Pick<ActivityLogEntry, 'entityType' | 'actio
     case 'promoted': {
       const target = typeof p.promotedType === 'string' ? ENTITY_LABELS[p.promotedType as EntityType] : '';
       return `收件箱记录${name}转为${target}`;
+    }
+    case 'linked':
+    case 'unlinked': {
+      const kind = p.kind === 'zotero' ? '文献' : p.kind === 'file' ? '文件' : '链接';
+      const where = typeof p.ownerTitle === 'string' ? `（${p.ownerTitle}）` : '';
+      return `${e.action === 'linked' ? '关联' : '移除'}${kind}${name}${where}`;
     }
     case 'updated': {
       if (changes.currentStatus && Object.keys(changes).length === 1) return `更新${what}${name}的现状`;

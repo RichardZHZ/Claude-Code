@@ -7,6 +7,7 @@ import type {
   InboxItem,
   Milestone,
   Project,
+  Resource,
   Review,
   Task,
   Theme,
@@ -19,6 +20,9 @@ export type HealthReport = {
   issues: HealthIssue[];
   counts: Record<HealthSeverity, number>;
 };
+
+/** 资源附带所属对象的标题（对象已删除时为 null）。 */
+export type ResourceView = Resource & { ownerTitle: string | null };
 
 /** 复盘时间线里的一项：某个周期的最新一版复盘。 */
 export type ReviewEntry = Review & { versions: number };
@@ -91,6 +95,8 @@ export type WeekView = {
   backlog: TaskView[];
   /** 本周结束前到期（含已逾期）且未完成的里程碑。 */
   milestonesDue: MilestoneDue[];
+  /** 本周新关联的 Zotero 文献。 */
+  literature: ResourceView[];
 };
 
 export type DayView = {
@@ -127,4 +133,51 @@ export type InboxList = {
 export type PromoteResult = {
   item: InboxItem;
   created: { type: 'theme' | 'project' | 'task'; id: number };
+};
+
+// ---------- 草稿 ----------
+
+/** 草稿里建议的任务：附带排序分数和理由。 */
+export type DraftTask = { task: TaskView; score: number; reasons: string[] };
+
+export type WeekPlanDraft = {
+  weekKey: string;
+  start: string;
+  end: string;
+  /** 已经写下的本周重点。 */
+  currentFocus: string[];
+  /** 按规则建议的本周重点（上周带入、临近的里程碑、临近截止的课题）。 */
+  suggestedFocus: string[];
+  /** 已经排进本周的任务。 */
+  alreadyPlanned: TaskView[];
+  /** 建议加入本周的任务，按分数从高到低。 */
+  suggestedTasks: DraftTask[];
+  /** 截至下周末到期、尚未完成的里程碑。 */
+  milestones: MilestoneDue[];
+  /** 需要注意的健康检查提醒。 */
+  issues: HealthIssue[];
+};
+
+export type DayPlanDraft = {
+  date: string;
+  weekKey: string;
+  currentTopTaskIds: number[];
+  /** 建议的最重要的事（最多 3 件，不含受阻任务）。 */
+  suggestedTop: DraftTask[];
+  otherCandidates: DraftTask[];
+  doneToday: TaskView[];
+};
+
+export type WeekReviewDraft = {
+  weekKey: string;
+  start: string;
+  end: string;
+  focus: string[];
+  stats: { done: number; total: number };
+  milestonesCompleted: string[];
+  literature: string[];
+  /** 已经保存过的复盘（没有则为 null）。 */
+  existingReview: WeeklyReview | null;
+  /** 按规则整理的复盘要点，可以直接保存，也可以润色后再保存。 */
+  suggested: WeeklyReview;
 };

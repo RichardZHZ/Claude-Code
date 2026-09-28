@@ -94,3 +94,10 @@ export function daysBetween(from: string, to: string): number {
 export function shiftWeek(weekKey: string, offset: number): string {
   return isoWeekKey(addDays(weekRange(weekKey).start, offset * 7));
 }
+
+/** 某天本地时间 0 点对应的 Date，用于按天筛选时间戳。 */
+export function startOfLocalDay(date: string): Date {
+  const [y, m, d] = date.split('-').map(Number);
+  parseDate(date);
+  return new Date(y!, m! - 1, d!);
+}

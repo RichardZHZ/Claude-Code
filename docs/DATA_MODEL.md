@@ -79,9 +79,19 @@ reviews       复盘快照：每保存一次复盘追加一条，从不修改
 
 `content` 是记下的内容。升级后 `promoted_type` 和 `promoted_id` 指向生成的议题、课题或任务。
 
-### resources 资源
+### resources 文献与链接
 
-`owner_type` 与 `owner_id` 指向议题、课题或任务。`kind` 是 `url`、`zotero` 或 `file`，`ref` 是链接、Zotero 条目键或文件路径。
+挂在议题、课题或任务上。这是多态关联，没有外键：删除议题、课题、任务时，服务层会清理其名下的资源。
+
+| 字段 | 说明 |
+| --- | --- |
+| owner_type, owner_id | 所属对象：`theme` / `project` / `task` |
+| kind | `url` 链接 / `zotero` 文献 / `file` 本地文件 |
+| ref | 链接地址、Zotero 条目 key（8 位大写字母或数字）或文件路径 |
+| label | 显示名称；文献为简短引文，例如 `Oke (1982) The energetic basis of the urban heat island` |
+| meta | 关联时的元数据快照：`{ title, creators, year, itemType, publication, doi, url }`，Zotero 没开时也能显示 |
+
+同一对象的同一 `kind` + `ref` 只能出现一次（唯一索引）。"本周新关联的文献"按 `created_at` 计算。
 
 ### activity_log 活动日志
 
@@ -106,7 +116,7 @@ reviews       复盘快照：每保存一次复盘追加一条，从不修改
 | kind | `week` 或 `day` |
 | period_key | 周复盘为 `2026-W40`，日复盘为 `2026-09-28` |
 | content | 复盘内容，与计划表里的 review 结构相同 |
-| stats | 保存时自动统计。周：本周重点、完成数、总数、完成与未完成的任务标题。日：最重要的事及是否完成、完成数、总数 |
+| stats | 保存时自动统计。周：本周重点、完成数、总数、完成与未完成的任务标题、本周关联的文献。日：最重要的事及是否完成、完成数、总数 |
 | created_at | 保存时刻 |
 
 ## 存储约定

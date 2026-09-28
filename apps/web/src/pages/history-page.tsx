@@ -173,6 +173,11 @@ function WeekEntry({ entry, today }: { entry: ReviewEntryDto; today: string }) {
                 <Lines items={review.carryOver} />
               </Block>
             )}
+            {(stats.literature?.length ?? 0) > 0 && (
+              <Block label="本周关联的文献">
+                <Lines items={stats.literature ?? []} />
+              </Block>
+            )}
           </div>
           {review.reflection && (
             <Block label="反思">

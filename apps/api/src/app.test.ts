@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { openDb, runMigrations } from '@researchpilot/core';
+import { isoWeekKey, openDb, runMigrations, toDateString } from '@researchpilot/core';
 import type {
   DayViewDto,
   ProjectDetailDto,
@@ -219,5 +219,70 @@ describe('健康检查、活动记录、复盘时间线、日历', () => {
     const text = await res.text();
     expect(text).toContain('SUMMARY:截止：论文');
     expect(text).toContain('DTSTART;VALUE=DATE:20261231');
+  });
+});
+
+describe('文献与链接', () => {
+  async function withZotero(mode: 'up' | 'down') {
+    const { createZoteroClient } = await import('@researchpilot/core');
+    const { fakeZoteroFetch } = await import('@researchpilot/core/testing');
+    const db = openDb(':memory:');
+    runMigrations(db);
+    const zotero = createZoteroClient({
+      baseUrl: 'http://127.0.0.1:23119',
+      fetch: fakeZoteroFetch(undefined, mode),
+    });
+    app = createApp({ db, today: () => '2026-09-28', zotero });
+  }
+
+  it('添加链接、关联文献、列出、删除', async () => {
+    await withZotero('up');
+    const project = await call<{ id: number }>('POST', '/projects', { title: '论文' });
+    const owner = { ownerType: 'project', ownerId: project.data.id };
+
+    const link = await call<{ id: number }>('POST', '/resources', {
+      ...owner,
+      kind: 'url',
+      ref: 'https://overleaf.com/p',
+      label: 'Overleaf',
+    });
+    expect(link.status).toBe(201);
+    expect((await call('POST', '/resources', { ...owner, kind: 'url', ref: 'not a url' })).status).toBe(400);
+
+    const lit = await call<{ label: string }>('POST', '/resources/zotero', { ...owner, itemKey: 'OKE1982A' });
+    expect(lit).toMatchObject({
+      status: 201,
+      data: { label: 'Oke (1982) The energetic basis of the urban heat island' },
+    });
+    expect((await call('POST', '/resources/zotero', { ...owner, itemKey: 'OKE1982A' })).status).toBe(400);
+
+    const list = await call<{ kind: string }[]>(
+      'GET',
+      `/resources?ownerType=project&ownerId=${project.data.id}`,
+    );
+    expect(list.data.map((r) => r.kind)).toEqual(['url', 'zotero']);
+    expect((await call('DELETE', `/resources/${link.data.id}`)).status).toBe(204);
+
+    const week = await call<{ literature: { ref: string }[] }>(
+      'GET',
+      '/weeks/' + isoWeekKey(toDateString(new Date())),
+    );
+    expect(week.data.literature.map((r) => r.ref)).toEqual(['OKE1982A']);
+  });
+
+  it('搜索 Zotero；Zotero 没运行时返回 503 和设置提示', async () => {
+    await withZotero('up');
+    const found = await call<{ key: string }[]>('GET', '/zotero/search?q=heat');
+    expect(found.data.map((i) => i.key).sort()).toEqual(['LIZHAO15', 'OKE1982A']);
+    expect(await call('GET', '/zotero/status')).toEqual({
+      status: 200,
+      data: { available: true, message: 'Zotero 已连接' },
+    });
+
+    await withZotero('down');
+    const res = await call<{ error: string }>('GET', '/zotero/search?q=heat');
+    expect(res.status).toBe(503);
+    expect(res.data.error).toMatch(/连不上 Zotero/);
+    expect((await call<{ available: boolean }>('GET', '/zotero/status')).data.available).toBe(false);
   });
 });

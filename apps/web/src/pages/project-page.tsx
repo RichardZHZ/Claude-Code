@@ -17,6 +17,7 @@ import type {
 import { isoWeekKey } from '@researchpilot/core/week';
 import { EmptyHint, PageHeader, QueryView, Section } from '@/components/common';
 import { ProjectDialog } from '@/components/goals/project-dialog';
+import { ResourcesPanel } from '@/components/resources/resources-panel';
 import { TaskItem, TaskList } from '@/components/tasks/task-item';
 import { TaskQuickAdd } from '@/components/tasks/task-quick-add';
 import { Badge } from '@/components/ui/badge';
@@ -131,6 +132,13 @@ function ProjectContent({ project }: { project: ProjectDetailDto }) {
       </div>
 
       <TaskBoard project={project} today={today} />
+      <Section
+        title="文献与资源"
+        description="从 Zotero 关联的文献，以及 Overleaf、数据、代码等链接。"
+        testId="project-resources"
+      >
+        <ResourcesPanel ownerType="project" ownerId={project.id} ownerTitle={project.title} />
+      </Section>
       <ActivityCard projectId={project.id} today={today} />
     </div>
   );

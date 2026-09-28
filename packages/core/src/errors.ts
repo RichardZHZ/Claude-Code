@@ -1,8 +1,10 @@
 /** 业务错误：API 层据此返回 4xx，而不是 500。 */
-export class DomainError extends Error {
-  readonly code: 'not_found' | 'invalid';
+export type DomainErrorCode = 'not_found' | 'invalid' | 'unavailable';
 
-  constructor(code: 'not_found' | 'invalid', message: string) {
+export class DomainError extends Error {
+  readonly code: DomainErrorCode;
+
+  constructor(code: DomainErrorCode, message: string) {
     super(message);
     this.name = 'DomainError';
     this.code = code;
@@ -15,4 +17,9 @@ export function notFound(what: string, id: number | string): DomainError {
 
 export function invalid(message: string): DomainError {
   return new DomainError('invalid', message);
+}
+
+/** 依赖的外部服务（例如 Zotero）暂时不可用。 */
+export function unavailable(message: string): DomainError {
+  return new DomainError('unavailable', message);
 }

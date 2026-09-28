@@ -13,6 +13,7 @@ export const ENTITY_TYPES = [
   'weekly_plan',
   'daily_plan',
   'inbox_item',
+  'resource',
 ] as const;
 /** 活动日志里的动作。一次写操作只记一条，取最能概括这次变化的动作。 */
 export const ACTIVITY_ACTIONS = [
@@ -29,6 +30,8 @@ export const ACTIVITY_ACTIONS = [
   'journaled',
   'reviewed',
   'promoted',
+  'linked',
+  'unlinked',
 ] as const;
 export const REVIEW_KINDS = ['week', 'day'] as const;
 export const RESOURCE_OWNER_TYPES = ['theme', 'project', 'task'] as const;
@@ -43,6 +46,14 @@ export type PromoteType = (typeof PROMOTE_TYPES)[number];
 export type EntityType = (typeof ENTITY_TYPES)[number];
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 export type ReviewKind = (typeof REVIEW_KINDS)[number];
+export type ResourceOwnerType = (typeof RESOURCE_OWNER_TYPES)[number];
+export type ResourceKind = (typeof RESOURCE_KINDS)[number];
+
+export const RESOURCE_KIND_LABELS: Record<ResourceKind, string> = {
+  url: '链接',
+  zotero: '文献',
+  file: '文件',
+};
 
 export const THEME_STATUS_LABELS: Record<ThemeStatus, string> = {
   active: '进行中',

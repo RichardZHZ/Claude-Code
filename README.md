@@ -8,14 +8,14 @@
 
 每天做的事都能追溯到它服务的长期目标。数据只存在你电脑上的一个 SQLite 文件里。
 
-开发计划见 [docs/DEV_PLAN.md](docs/DEV_PLAN.md)，数据模型见 [docs/DATA_MODEL.md](docs/DATA_MODEL.md)，接口见 [docs/API.md](docs/API.md)。
+开发计划见 [docs/DEV_PLAN.md](docs/DEV_PLAN.md)，数据模型见 [docs/DATA_MODEL.md](docs/DATA_MODEL.md)，接口见 [docs/API.md](docs/API.md)，Claude 集成见 [docs/MCP.md](docs/MCP.md)。
 
 ## 当前进度
 
 - [x] 第〇阶段：项目骨架（数据库表结构、API 服务、前端框架）
 - [x] 第一阶段：议题地图、课题详情、本周、今日、收件箱五个页面
 - [x] 第二阶段：提醒（健康检查）、复盘历史、课题动态、日历导出
-- [ ] 第三阶段：Claude 小助理（MCP）与 Zotero 联动
+- [x] 第三阶段：在 Claude Code 里使用的小助理（MCP）、Zotero 文献关联
 - [ ] 第四阶段：打包部署与自动备份
 
 ## 快速开始
@@ -40,8 +40,15 @@ pnpm dev                 # 同时启动 API 和前端
 5. **提醒**：自动检查逾期或有风险的里程碑、太久没动的课题、漏写的周复盘等，今日页顶部也会提示。不想被提醒的课题可以设为"暂停"。
 6. **回顾**：每次保存的周复盘、日复盘都会留下一份不可修改的记录，按时间排成你的研究时间线。
 7. **日历**：在议题地图点"导出到日历"，把里程碑和截止日期放进你常用的日历应用。
+8. **文献**：课题页和议题卡片的"文献与资源"里，可以从 Zotero 搜索并关联文献，也可以添加 Overleaf、数据、代码等链接。本周关联的文献会出现在周复盘里。
 
 任务一定属于某个课题或议题，所以每天做的事都能在议题地图上看到进度。课题页底部的"最近动态"记录了它的每一次变化。
+
+## 和 Claude 一起用
+
+在 Claude Code 里打开这个仓库，批准一次 `researchpilot` 服务器，就可以直接说"帮我排本周计划""帮我写周复盘""把 Oke 1982 关联到热岛课题"。也可以用斜杠命令 `/mcp__researchpilot__plan_week`、`/mcp__researchpilot__plan_day`、`/mcp__researchpilot__review_week`。计划和复盘的草稿由固定规则算出，每条建议都附理由；Claude 写入前会先请你确认。详见 [docs/MCP.md](docs/MCP.md)。
+
+Zotero 需要 7.0 以上，并在"设置 → 高级 → 其他"里勾选"允许此计算机上的其他应用程序与 Zotero 通信"。
 
 数据库默认在仓库根目录的 `data/researchpilot.db`，可以用环境变量 `DB_PATH` 指定别的位置。备份时复制这个文件即可。
 
@@ -64,6 +71,7 @@ pnpm dev                 # 同时启动 API 和前端
 apps/
   api/        Hono 后端，所有接口挂在 /api 下
   web/        React 前端（Vite + Tailwind + shadcn/ui）
+  mcp/        MCP 服务器，供 Claude Code 调用
 packages/
   core/       表结构、迁移、业务逻辑（services/）、前后端共享的校验与类型（contracts.ts）
 e2e/          Playwright 端到端测试

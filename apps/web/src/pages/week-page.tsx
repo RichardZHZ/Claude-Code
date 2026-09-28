@@ -362,6 +362,20 @@ function WeekReviewCard({ data }: { data: WeekViewDto }) {
         </div>
         <Progress value={total ? (done.length / total) * 100 : 0} label="本周任务完成度" />
       </div>
+      {data.literature.length > 0 && (
+        <div className="mb-4" data-testid="week-literature">
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
+            本周关联的文献（{data.literature.length}）
+          </p>
+          <ul className="space-y-0.5 text-sm">
+            {data.literature.map((r) => (
+              <li key={r.id} className="truncate" title={r.label ?? r.ref}>
+                {r.label ?? r.ref}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {

@@ -7,6 +7,7 @@ import { milestones, projects, tasks, themes, type NewTask, type Task } from '..
 import type { TaskView } from '../types.ts';
 import { isoWeekKey } from '../week.ts';
 import { diffFields, logActivity } from './activity.ts';
+import { pruneOrphanResources } from './resources.ts';
 
 /** 任务实际所属的议题：直接挂议题的取 tasks.theme_id，否则取所属课题的议题。 */
 const ownerThemeId = sql<number | null>`coalesce(${tasks.themeId}, ${projects.themeId})`;
@@ -239,6 +240,7 @@ export function updateTask(db: Conn, id: number, patch: UpdateTaskInput): TaskVi
 export function deleteTask(db: Conn, id: number): void {
   const view = getTaskView(db, id);
   db.delete(tasks).where(eq(tasks.id, id)).run();
+  pruneOrphanResources(db);
   logActivity(db, {
     entityType: 'task',
     entityId: id,

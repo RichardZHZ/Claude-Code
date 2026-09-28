@@ -11,3 +11,5 @@ export * from './activity.ts';
 export * from './health.ts';
 export * from './reviews.ts';
 export * from './calendar.ts';
+export * from './resources.ts';
+export * from './drafts.ts';

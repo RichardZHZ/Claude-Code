@@ -179,6 +179,15 @@ DailyPlan  日计划 ── 从本周任务中选 Top 3，当日日志，晚间�
 3. Zotero：读取 `localhost:23119/api/users/0/items`，允许把文献条目挂到议题/课题；周复盘自动汇总本周新增文献
 4. AI 起草：草稿结构由 core 生成，Claude 只做自然语言润色（遵循"确定性规则决策，AI 起草"）
 
+✅ 已完成。实施中的调整与补充：
+- MCP 服务器不需要构建：`apps/mcp/bin/researchpilot-mcp.mjs` 用 tsx 直接运行源码。仓库根目录的 `.mcp.json` 已登记好，在 Claude Code 里打开这个仓库、批准一次即可使用，不必手动 `claude mcp add`。
+- 工具统一用 `rp_` 前缀，共 27 个：读取、草稿、写入、文献四类。读取类支持 `response_format`（markdown / json），列表类支持分页。另提供三个工作流提示 `plan_week`、`plan_day`、`review_week`，在 Claude Code 里显示为斜杠命令。
+- 草稿（`services/drafts.ts`）用固定规则给任务打分并写出理由：高优先级、已经在做、里程碑临近或逾期、课题临近截止、之前没做完加分；课题暂停、任务受阻减分。服务器说明和提示词都要求 Claude 写入前先征得用户确认。
+- 文献关联复用第〇阶段就建好的 `resources` 表，新增 `meta` 列保存作者、年份、标题等快照，Zotero 没开时也能显示；同一对象不能重复关联同一条目。同一张表也支持普通链接（Overleaf、数据、代码仓库）。
+- "本周新增文献"按关联到课题或议题的时间计算，不依赖 Zotero 是否运行。周复盘快照里一并记下。
+- Web 端也能用：课题页和议题卡片有"文献与资源"，可以从 Zotero 搜索关联、添加链接。浏览器不能直接访问 Zotero，由后端 `/api/zotero/*` 代理；Zotero 连不上时返回 503 和开启方法。
+- 资源是多态关联、没有外键。删除议题、课题、任务时会清理其名下的资源。
+
 ### Phase 4：打包与运维
 1. Dockerfile + docker-compose（api 服务静态托管 web）
 2. SQLite 备份脚本（每日复制 + 保留 30 份）

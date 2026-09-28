@@ -5,6 +5,7 @@ import { defineConfig, devices } from '@playwright/test';
 // 端到端测试使用独立端口和一次性的临时数据库，不影响日常使用的数据。
 const API_PORT = 8799;
 const WEB_PORT = 5199;
+const ZOTERO_PORT = 23199;
 const dbPath = join(tmpdir(), `researchpilot-e2e-${Date.now()}.db`);
 
 export default defineConfig({
@@ -26,9 +27,17 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {
+      // 假 Zotero：让"从 Zotero 添加文献"可以在没有 Zotero 的环境里测试。
+      command: 'pnpm --filter @researchpilot/mcp exec tsx ../../e2e/fake-zotero-server.ts',
+      url: `http://127.0.0.1:${ZOTERO_PORT}/api/users/0/items/top`,
+      env: { PORT: String(ZOTERO_PORT) },
+      reuseExistingServer: false,
+      timeout: 60_000,
+    },
+    {
       command: 'pnpm --filter @researchpilot/api start',
       url: `http://127.0.0.1:${API_PORT}/api/health`,
-      env: { DB_PATH: dbPath, PORT: String(API_PORT) },
+      env: { DB_PATH: dbPath, PORT: String(API_PORT), ZOTERO_URL: `http://127.0.0.1:${ZOTERO_PORT}` },
       reuseExistingServer: false,
       timeout: 60_000,
     },

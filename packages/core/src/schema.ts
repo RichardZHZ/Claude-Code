@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import {
   ACTIVITY_ACTIONS,
   ENTITY_TYPES,
@@ -154,6 +154,17 @@ export const inboxItems = sqliteTable('inbox_items', {
   ...timestamps,
 });
 
+export type ResourceMeta = {
+  title?: string;
+  /** 作者摘要，例如 "Oke"、"Smith and Jones"、"Li et al."。 */
+  creators?: string;
+  year?: string;
+  itemType?: string;
+  publication?: string;
+  doi?: string;
+  url?: string;
+};
+
 /** 资源链接：Overleaf、数据集、Zotero 条目等，挂在议题、课题或任务上。 */
 export const resources = sqliteTable(
   'resources',
@@ -162,11 +173,17 @@ export const resources = sqliteTable(
     ownerType: text('owner_type', { enum: RESOURCE_OWNER_TYPES }).notNull(),
     ownerId: integer('owner_id').notNull(),
     kind: text('kind', { enum: RESOURCE_KINDS }).notNull(),
+    /** 链接为 URL；Zotero 条目为条目 key；文件为路径。 */
     ref: text('ref').notNull(),
     label: text('label'),
+    /** 关联时的元数据快照（文献的作者、年份等），Zotero 没开时也能显示。 */
+    meta: text('meta', { mode: 'json' }).$type<ResourceMeta>(),
     ...timestamps,
   },
-  (t) => [index('resources_owner_idx').on(t.ownerType, t.ownerId)],
+  (t) => [
+    index('resources_owner_idx').on(t.ownerType, t.ownerId),
+    uniqueIndex('resources_owner_ref_unique').on(t.ownerType, t.ownerId, t.kind, t.ref),
+  ],
 );
 
 export type ActivityPayload = {
@@ -210,6 +227,8 @@ export type WeekReviewStats = {
   total: number;
   completed: string[];
   unfinished: string[];
+  /** 本周新关联的文献（引文）。第三阶段起记录。 */
+  literature?: string[];
 };
 
 export type DayReviewStats = {
