@@ -86,13 +86,13 @@ DailyPlan  日计划 ── 从本周任务中选 Top 3，当日日志，晚间�
 │   ├── web/          # React SPA
 │   └── mcp/          # MCP server（stdio），供 Claude Code 调用
 ├── packages/
-│   ├── core/         # drizzle schema、services、health rules、zod types
-│   └── config/       # 共享 tsconfig / eslint
+│   └── core/         # drizzle schema、services、health rules、zod types
 ├── docs/
 │   ├── DEV_PLAN.md   # 本计划落库
 │   └── DATA_MODEL.md
 ├── docker-compose.yml
 ├── package.json / pnpm-workspace.yaml / turbo.json
+├── tsconfig.base.json / eslint.config.js / .prettierrc.json   # 共享配置放在根目录
 └── CLAUDE.md         # 项目约定，便于后续用 Claude Code 迭代
 ```
 
@@ -120,13 +120,20 @@ DailyPlan  日计划 ── 从本周任务中选 Top 3，当日日志，晚间�
 
 ## 分阶段实施
 
-### Phase 0：脚手架（半天）
+### Phase 0：脚手架 ✅ 已完成
 1. 初始化 pnpm monorepo、Turborepo、tsconfig、eslint/prettier
 2. `packages/core`：drizzle + SQLite，写 schema、首个迁移、seed 脚本
-3. `apps/api`：Hono 启动、健康检查路由 `/health`
+3. `apps/api`：Hono 启动、健康检查路由 `/api/health`
 4. `apps/web`：Vite + React + Tailwind + shadcn 初始化
 5. 写 `CLAUDE.md`、`docs/DEV_PLAN.md`（本文件）、`docs/DATA_MODEL.md`
 6. 首次 commit/push 到 `claude/cool-edison-ecc9fg`
+
+实施中的调整：
+- 共享的 tsconfig、ESLint、Prettier 配置直接放在仓库根目录，没有单独建 `packages/config` 包，结构更简单。
+- TypeScript 锁定 6.0.x，因为 typescript-eslint 目前只支持到 6.0。
+- 开发用的云环境无法访问 ui.shadcn.com，shadcn 的配置和按钮、卡片、徽标三个组件按官方源码手动写入。本地开发时可以正常用 `shadcn add` 添加组件。
+- 主键用自增整数而不是 UUID，方便在界面和 Claude 对话里直接说"任务 12"。
+- 状态类枚举只在应用层校验，数据库层只对"任务必须有归属"和"优先级 1–3"加了 CHECK 约束，避免以后增减枚举值时要重建表。
 
 ### Phase 1：MVP —— 目标链跑通（核心）
 1. core：themes / projects / milestones / tasks 服务 + Vitest 单测
