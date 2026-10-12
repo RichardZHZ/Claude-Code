@@ -344,7 +344,7 @@ export function createServer({
     {
       title: '健康检查',
       description:
-        '按固定规则检查：有风险或逾期的里程碑、停滞的课题、已结束课题下的遗留任务、没有进行中课题的议题。结论由规则决定，请据实转述。',
+        '按固定规则检查：有风险或逾期的里程碑、停滞的课题、已结束课题下的遗留任务、没有进行中课题的议题、排在之前某天却还没完成的任务（可能忘了打勾，先问用户是否已经做完）。结论由规则决定，请据实转述。',
       inputSchema: { response_format: responseFormat },
       annotations: READ,
     },

@@ -14,9 +14,11 @@ import {
   Menu,
   shell,
   type MenuItemConstructorOptions,
+  type Rectangle,
 } from 'electron';
 import { DEFAULT_DB_PATH } from '@researchpilot/core/config';
 import { DesktopWidget } from './widget.ts';
+import { isOnScreen, readJson, trackBounds, writeJson } from './window-state.ts';
 
 const APP_TITLE = '科研小助理';
 /** 优先用这个端口，这样日历订阅地址保持不变；被占用时换一个空闲端口。 */
@@ -162,10 +164,16 @@ function showMain(path?: string) {
   mainWindow.focus();
 }
 
+type MainWindowState = { bounds?: Rectangle; maximized?: boolean };
+
+/** 主窗口上次的位置、大小和是否最大化。 */
+const mainStateFile = () => join(app.getPath('userData'), 'main-window.json');
+
 function createWindow(path: string) {
+  const saved = readJson<MainWindowState>(mainStateFile(), {});
+  const bounds = saved.bounds && isOnScreen(saved.bounds) ? saved.bounds : { width: 1280, height: 860 };
   const win = new BrowserWindow({
-    width: 1280,
-    height: 860,
+    ...bounds,
     minWidth: 900,
     minHeight: 600,
     title: APP_TITLE,
@@ -182,7 +190,14 @@ function createWindow(path: string) {
       openExternally(url);
     }
   });
-  win.once('ready-to-show', () => win.show());
+  // 调整过的大小和位置下次打开时沿用。最大化时记下最大化之前的大小。
+  trackBounds(win, () =>
+    writeJson(mainStateFile(), { bounds: win.getNormalBounds(), maximized: win.isMaximized() }),
+  );
+  win.once('ready-to-show', () => {
+    if (saved.maximized) win.maximize();
+    win.show();
+  });
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null;
   });

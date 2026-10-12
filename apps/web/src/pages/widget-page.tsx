@@ -3,7 +3,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { countdownParts } from '@researchpilot/core/countdown';
 import { formatFocusDuration } from '@researchpilot/core/focus';
 import { isoWeekKey } from '@researchpilot/core/week';
-import type { FocusSessionDto, HealthSeverity, TaskViewDto } from '@researchpilot/core/contracts';
+import type {
+  FocusSessionDto,
+  HealthIssueDto,
+  HealthSeverity,
+  TaskViewDto,
+} from '@researchpilot/core/contracts';
 import { CountdownDigits } from '@/components/countdown/countdown-card';
 import { FocusControls } from '@/components/focus/focus-panel';
 import { useFocusController } from '@/components/focus/use-focus-controller';
@@ -19,17 +24,11 @@ const MAX_ITEMS = 5;
 /** 小窗最多显示几个倒计时。 */
 const MAX_COUNTDOWNS = 3;
 /** 小窗最多列几条提醒。 */
-const MAX_ISSUES = 3;
+const MAX_ISSUES = 5;
 /** 小窗不在前台时也要跟上主窗口里的修改，定时刷新。 */
 const REFRESH_MS = 30_000;
 /** 专注状态刷新得勤一些：主窗口里开始或结束计时后，小窗很快跟上。 */
 const FOCUS_REFRESH_MS = 5_000;
-/**
- * 需要提醒时，页面标题带上这个词。桌面应用看到后会把小窗临时提到最上层，
- * 用户点"知道了"或结束计时后恢复原来的层级。
- */
-const ATTENTION_TITLE = '科研小助理 · 提醒';
-const NORMAL_TITLE = '科研小助理 · 今天';
 
 const SEVERITY_DOT: Record<HealthSeverity, string> = {
   danger: 'bg-destructive',
@@ -37,11 +36,18 @@ const SEVERITY_DOT: Record<HealthSeverity, string> = {
   info: 'bg-muted-foreground/50',
 };
 
-/** 系统通知（桌面应用里直接可用；浏览器里第一次会请求权限）。 */
+/**
+ * 系统通知（桌面应用里直接可用；浏览器里第一次会请求权限）。
+ * 小窗贴在桌面上、可能被其他程序挡住，所以提醒靠通知送达；点通知会把小窗带到前面。
+ */
 function notify(title: string, body: string) {
   if (!('Notification' in window)) return;
-  if (Notification.permission === 'granted') new Notification(title, { body });
-  else if (Notification.permission === 'default') void Notification.requestPermission();
+  if (Notification.permission === 'granted') {
+    const n = new Notification(title, { body });
+    n.onclick = () => window.focus();
+  } else if (Notification.permission === 'default') {
+    void Notification.requestPermission();
+  }
 }
 
 /**
@@ -96,10 +102,9 @@ export function WidgetPage() {
     notify('专心致志', `"${runningTitle}"已经连续专注 ${formatFocusDuration(elapsed)}，起来活动一下吧。`);
   }, [runningId, reminders, elapsed, runningTitle]);
 
-  const attention = focus.reminderDue || finished !== null;
   useEffect(() => {
-    document.title = attention ? ATTENTION_TITLE : NORMAL_TITLE;
-  }, [attention]);
+    document.title = '科研小助理 · 今天';
+  }, []);
 
   const top = day.data?.topTasks ?? [];
   const scheduled = day.data?.scheduled ?? [];
@@ -191,14 +196,7 @@ export function WidgetPage() {
             </h2>
             <ul className="flex flex-col gap-1.5">
               {issues.slice(0, MAX_ISSUES).map((i) => (
-                <li
-                  key={i.key}
-                  className="flex items-start gap-2 text-xs leading-snug"
-                  data-testid="widget-issue"
-                >
-                  <span className={cn('mt-1 size-1.5 shrink-0 rounded-full', SEVERITY_DOT[i.severity])} />
-                  <span className={cn(i.severity === 'danger' && 'text-destructive')}>{i.title}</span>
-                </li>
+                <WidgetIssue key={i.key} issue={i} />
               ))}
             </ul>
           </section>
@@ -235,6 +233,27 @@ export function WidgetPage() {
         {focus.todayAllMs > 0 && <span>今日专注 {formatFocusDuration(focus.todayAllMs)}</span>}
       </footer>
     </div>
+  );
+}
+
+/** 一条提醒。过期没打勾的任务前面有勾选框，可以直接标记完成。 */
+function WidgetIssue({ issue }: { issue: HealthIssueDto }) {
+  const { update } = useTaskActions();
+  const target = issue.target;
+  return (
+    <li className="flex items-start gap-2 text-xs leading-snug" data-testid="widget-issue">
+      {target.type === 'task' ? (
+        <Checkbox
+          className="mt-px size-3.5"
+          disabled={update.isPending}
+          aria-label={`标记为完成：${target.title}`}
+          onCheckedChange={(v) => v === true && update.mutate({ id: target.id, patch: { status: 'done' } })}
+        />
+      ) : (
+        <span className={cn('mt-1 size-1.5 shrink-0 rounded-full', SEVERITY_DOT[issue.severity])} />
+      )}
+      <span className={cn(issue.severity === 'danger' && 'text-destructive')}>{issue.title}</span>
+    </li>
   );
 }
 

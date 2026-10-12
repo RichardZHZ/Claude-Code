@@ -9,6 +9,21 @@ const base: HealthSnapshot = {
   openTasks: [],
 };
 
+type OpenTask = HealthSnapshot['openTasks'][number];
+let nextTaskId = 100;
+/** 一项未完成的任务，默认不挂在任何对象下、没排日子。 */
+function task(patch: Partial<OpenTask>): OpenTask {
+  return {
+    id: nextTaskId++,
+    title: '任务',
+    projectId: null,
+    themeId: null,
+    status: 'todo',
+    scheduledDate: null,
+    ...patch,
+  };
+}
+
 function run(patch: Partial<HealthSnapshot>) {
   return evaluateHealth({ ...base, ...patch });
 }
@@ -98,10 +113,7 @@ describe('健康检查', () => {
     it('已完成或放弃的课题下还有未完成任务，按课题汇总', () => {
       const [issue] = run({
         projects: [{ ...base.projects[0]!, status: 'dropped' }],
-        openTasks: [
-          { projectId: 10, themeId: null, status: 'todo' },
-          { projectId: 10, themeId: null, status: 'blocked' },
-        ],
+        openTasks: [task({ projectId: 10, status: 'todo' }), task({ projectId: 10, status: 'blocked' })],
       });
       expect(issue).toMatchObject({
         key: 'orphaned_tasks:project:10',
@@ -112,13 +124,54 @@ describe('健康检查', () => {
     it('已结束的议题下还有未完成任务', () => {
       const issues = run({
         themes: [{ ...base.themes[0]!, status: 'closed' }],
-        openTasks: [{ projectId: null, themeId: 1, status: 'todo' }],
+        openTasks: [task({ themeId: 1 })],
       });
       expect(issues.map((i) => i.key)).toEqual(['orphaned_tasks:theme:1']);
     });
 
     it('进行中的课题不算遗留', () => {
-      expect(keys({ openTasks: [{ projectId: 10, themeId: null, status: 'todo' }] })).toEqual([]);
+      expect(keys({ openTasks: [task({ projectId: 10 })] })).toEqual([]);
+    });
+  });
+
+  describe('过期未完成的任务', () => {
+    it('排在今天之前、还没打勾的任务逐条提醒，早的在前', () => {
+      const issues = run({
+        openTasks: [
+          task({ id: 1, title: '写提纲', projectId: 10, scheduledDate: '2026-09-27' }),
+          task({ id: 2, title: '读综述', themeId: 1, scheduledDate: '2026-09-21', status: 'blocked' }),
+          task({ id: 3, title: '今天的事', projectId: 10, scheduledDate: '2026-09-28' }),
+          task({ id: 4, title: '只排了周', projectId: 10 }),
+        ],
+      });
+      expect(issues).toEqual([
+        {
+          key: 'missed_task:2',
+          rule: 'missed_task',
+          severity: 'warning',
+          title: '任务"读综述"排在9月21日，还没完成',
+          detail: '7 天前的安排（受阻）。做完了就打勾；还要做就排到今天，不做了就移出计划。',
+          target: { type: 'task', id: 2, date: '2026-09-21', title: '读综述' },
+        },
+        expect.objectContaining({
+          key: 'missed_task:1',
+          title: '任务"写提纲"排在9月27日，还没完成',
+          detail: '昨天的安排。做完了就打勾；还要做就排到今天，不做了就移出计划。',
+        }),
+      ]);
+    });
+
+    it('课题已结束、议题已结束的交给遗留任务，不重复提醒', () => {
+      expect(
+        keys({
+          projects: [{ ...base.projects[0]!, status: 'done' }],
+          themes: [{ ...base.themes[0]!, status: 'closed' }],
+          openTasks: [
+            task({ id: 1, projectId: 10, scheduledDate: '2026-09-20' }),
+            task({ id: 2, themeId: 1, scheduledDate: '2026-09-20' }),
+          ],
+        }),
+      ).toEqual(['orphaned_tasks:project:10', 'orphaned_tasks:theme:1']);
     });
   });
 
@@ -145,7 +198,7 @@ describe('健康检查', () => {
       milestones: [
         { id: 5, title: 'm', projectId: 10, dueDate: '2026-09-20', done: false, taskDone: 0, taskTotal: 0 },
       ],
-      openTasks: [{ projectId: 11, themeId: null, status: 'todo' }],
+      openTasks: [task({ projectId: 11 })],
     });
     expect(issues.map((i) => i.severity)).toEqual(['danger', 'warning', 'info']);
   });

@@ -267,7 +267,8 @@ export function formatIssues(issues: HealthIssue[]): string {
   if (!issues.length) return '一切正常：没有需要处理的提醒。';
   return issues
     .map((i) => {
-      const target = `${i.target.type === 'project' ? '课题' : '议题'} #${i.target.id}`;
+      const label = { project: '课题', theme: '议题', task: '任务' }[i.target.type];
+      const target = `${label} #${i.target.id}`;
       return `- 【${SEVERITY[i.severity]}】${i.title}（${target}）\n  ${i.detail}`;
     })
     .join('\n');

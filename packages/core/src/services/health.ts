@@ -18,6 +18,9 @@ export function buildHealthSnapshot(db: Conn, today: string): HealthSnapshot {
   const milestoneRows = db.select().from(milestones).all();
   const taskRows = db
     .select({
+      id: tasks.id,
+      title: tasks.title,
+      scheduledDate: tasks.scheduledDate,
       projectId: tasks.projectId,
       themeId: tasks.themeId,
       milestoneId: tasks.milestoneId,
@@ -67,7 +70,14 @@ export function buildHealthSnapshot(db: Conn, today: string): HealthSnapshot {
     }),
     openTasks: taskRows
       .filter((t) => t.status !== 'done')
-      .map((t) => ({ projectId: t.projectId, themeId: t.themeId, status: t.status })),
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        projectId: t.projectId,
+        themeId: t.themeId,
+        status: t.status,
+        scheduledDate: t.scheduledDate,
+      })),
   };
 }
 

@@ -94,7 +94,7 @@
 
 | 方法 | 路径 | 作用 |
 | --- | --- | --- |
-| GET | `/checks?today=` | 健康检查：按严重程度排好序的提醒，以及各级数量。`today` 默认取服务器日期，前端会传本机日期 |
+| GET | `/checks?today=` | 健康检查：按严重程度排好序的提醒，以及各级数量。`today` 默认取服务器日期，前端会传本机日期。每条提醒的 `target` 是 `{ type: 'project' \| 'theme', id }`，过期未完成的任务是 `{ type: 'task', id, date, title }`（date 是原来排在的那天） |
 | GET | `/activity?projectId=&themeId=&before=&limit=` | 活动记录，附中文说明，按时间倒序；用上一页最后一条的 id 作 `before` 翻页 |
 | GET | `/calendar.ics` | 未完成的里程碑和未结束课题的截止日期，ICS 格式，可下载或在日历应用里订阅 |
 
