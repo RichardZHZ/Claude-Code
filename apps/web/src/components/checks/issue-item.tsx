@@ -25,7 +25,7 @@ function IssueLink({ issue, children }: { issue: HealthIssueDto; children: React
     );
   }
   return (
-    <Link to="/map" className={className}>
+    <Link to="/themes/$themeId" params={{ themeId: String(t.id) }} className={className}>
       {children}
     </Link>
   );

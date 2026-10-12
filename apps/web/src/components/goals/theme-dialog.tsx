@@ -29,17 +29,36 @@ function toLocalInput(iso: string): string {
 }
 
 /** 新建或编辑研究议题。传 theme 为编辑，不传为新建。 */
-export function ThemeDialog({ theme, trigger }: { theme?: ThemeDto; trigger: ReactNode }) {
+export function ThemeDialog({
+  theme,
+  trigger,
+  onDeleted,
+}: {
+  theme?: ThemeDto;
+  trigger: ReactNode;
+  /** 删除成功后调用（例如在议题页删除后回到议题地图）。 */
+  onDeleted?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent>{open && <ThemeForm theme={theme} onDone={() => setOpen(false)} />}</DialogContent>
+      <DialogContent>
+        {open && <ThemeForm theme={theme} onDone={() => setOpen(false)} onDeleted={onDeleted} />}
+      </DialogContent>
     </Dialog>
   );
 }
 
-function ThemeForm({ theme, onDone }: { theme?: ThemeDto; onDone: () => void }) {
+function ThemeForm({
+  theme,
+  onDone,
+  onDeleted,
+}: {
+  theme?: ThemeDto;
+  onDone: () => void;
+  onDeleted?: () => void;
+}) {
   const [title, setTitle] = useState(theme?.title ?? '');
   const [description, setDescription] = useState(theme?.description ?? '');
   const [questions, setQuestions] = useState(listToLines(theme?.coreQuestions ?? []));
@@ -76,7 +95,12 @@ function ThemeForm({ theme, onDone }: { theme?: ThemeDto; onDone: () => void }) 
       )
     )
       return;
-    remove.mutate(undefined, { onSuccess: onDone });
+    remove.mutate(undefined, {
+      onSuccess: () => {
+        onDone();
+        onDeleted?.();
+      },
+    });
   }
 
   return (

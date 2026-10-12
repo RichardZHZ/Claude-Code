@@ -105,3 +105,78 @@ html.widget body {
 .widget-no-drag {
   -webkit-app-region: no-drag;
 }
+
+/*
+ * 议题地图的树状连线：.tree-branch 是一组子节点，.tree-item 是其中一个。
+ * 每个子节点左边一条竖线把兄弟节点串起来，再一条横线连到节点本身；
+ * 连线都接在节点顶部往下 --tree-y 的位置（节点第一行文字的中间）。
+ * 宽屏时父节点在左、子节点在右；窄屏时子节点排在父节点下方。
+ */
+.tree-branch {
+  --tree-y: 1.3rem;
+  --tree-gap: 0.75rem;
+  --tree-stub: 1rem;
+  --tree-line: color-mix(in oklch, var(--muted-foreground) 45%, transparent);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin-left: var(--tree-stub);
+}
+.tree-item {
+  position: relative;
+  padding-left: var(--tree-stub);
+  padding-bottom: var(--tree-gap);
+}
+.tree-item:last-child {
+  padding-bottom: 0;
+}
+.tree-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: var(--tree-y);
+  width: var(--tree-stub);
+  border-top: 1.5px solid var(--tree-line);
+}
+.tree-item::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-left: 1.5px solid var(--tree-line);
+}
+.tree-item:last-child::after {
+  bottom: auto;
+  height: var(--tree-y);
+}
+/* 窄屏：子节点在父节点下方，竖线从父节点底部接下来。 */
+@media (width < 48rem) {
+  .tree-branch {
+    padding-top: var(--tree-gap);
+  }
+  .tree-item:first-child::after {
+    top: calc(-1 * var(--tree-gap));
+  }
+  .tree-item:only-child::after {
+    top: calc(-1 * var(--tree-gap));
+    height: calc(var(--tree-y) + var(--tree-gap));
+  }
+}
+/* 宽屏：父节点在左，横线从父节点右边接到子节点的竖线。 */
+@media (width >= 48rem) {
+  .tree-branch::before {
+    content: '';
+    position: absolute;
+    left: calc(-1 * var(--tree-stub));
+    top: var(--tree-y);
+    width: var(--tree-stub);
+    border-top: 1.5px solid var(--tree-line);
+  }
+  .tree-item:first-child::after {
+    top: var(--tree-y);
+  }
+  .tree-item:only-child::after {
+    display: none;
+  }
+}
