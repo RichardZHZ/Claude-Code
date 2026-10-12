@@ -6,6 +6,7 @@ import { InboxPage } from '@/pages/inbox-page';
 import { MapPage } from '@/pages/map-page';
 import { ProjectPage } from '@/pages/project-page';
 import { ReviewPage } from '@/pages/review-page';
+import { ThemePage } from '@/pages/theme-page';
 import { TodayPage } from '@/pages/today-page';
 import { WeekPage } from '@/pages/week-page';
 import { WidgetPage } from '@/pages/widget-page';
@@ -44,6 +45,12 @@ const projectRoute = createRoute({
   component: ProjectPage,
 });
 
+const themeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/themes/$themeId',
+  component: ThemePage,
+});
+
 const inboxRoute = createRoute({ getParentRoute: () => rootRoute, path: '/inbox', component: InboxPage });
 
 const checksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/checks', component: ChecksPage });
@@ -65,6 +72,7 @@ export const router = createRouter({
     weekRoute,
     mapRoute,
     projectRoute,
+    themeRoute,
     inboxRoute,
     checksRoute,
     reviewRoute,

@@ -60,6 +60,33 @@ test('临近到期的里程碑出现在提醒里，完成后消失', async ({ pa
   await expect(page.getByTestId('health-issue').filter({ hasText: '完成实地测温' })).toHaveCount(0);
 });
 
+test('过期没打勾的任务进提醒：可以直接打勾、排到今天，小窗里也能勾', async ({ page }) => {
+  const [a, b] = await Promise.all(
+    ['补测温数据', '整理访谈记录'].map((title) =>
+      post<{ id: number }>(page.request, '/tasks', { title, projectId, scheduledDate: localDate(-2) }),
+    ),
+  );
+
+  await page.goto('/checks');
+  const issueA = page.getByTestId('health-issue').filter({ hasText: '补测温数据' });
+  await expect(issueA).toHaveAttribute('data-rule', 'missed_task');
+  await expect(issueA).toContainText('2 天前的安排');
+  // 排到今天：从提醒里消失，出现在今日页
+  await issueA.getByRole('button', { name: '排到今天：补测温数据' }).click();
+  await expect(issueA).toHaveCount(0);
+
+  // 小窗里的提醒可以直接打勾
+  await page.goto('/widget');
+  const issueB = page.getByTestId('widget-issue').filter({ hasText: '整理访谈记录' });
+  await issueB.getByRole('checkbox', { name: '标记为完成：整理访谈记录' }).click();
+  await expect(issueB).toHaveCount(0);
+
+  const done = await (await page.request.get(`/api/tasks/${b!.id}`)).json();
+  expect(done.status).toBe('done');
+  const moved = await (await page.request.get(`/api/tasks/${a!.id}`)).json();
+  expect(moved.scheduledDate).toBe(localDate());
+});
+
 test('课题页显示最近动态', async ({ page }) => {
   await page.goto(`/projects/${projectId}`);
   await page.getByTestId('column-todo').getByLabel('课题的新任务').fill('布设温度计');
@@ -80,8 +107,11 @@ test('议题倒计时：在议题里设定，今日、本周、议题地图和�
   await page.getByLabel('倒计时截止').fill('2099-06-30T18:00:15');
   await page.getByRole('button', { name: '保存' }).click();
   await expect(page.getByText('议题已更新')).toBeVisible();
-  const card = page.getByTestId('theme-card').filter({ hasText: '城市绿地' });
-  await expect(card.getByTestId('theme-countdown')).toContainText('2099年6月30日 18:00:15 截止');
+  // 地图上的议题节点显示还剩多少天；议题页显示完整的截止时刻和秒级倒计时
+  const branch = page.getByTestId('theme-branch').filter({ hasText: '城市绿地' });
+  await expect(branch.getByTestId('theme-node-countdown')).toContainText(/还剩 \d+ 天/);
+  await branch.getByRole('link', { name: '城市绿地', exact: true }).click();
+  await expect(page.getByTestId('theme-countdown')).toContainText('2099年6月30日 18:00:15 截止');
 
   // 今日页：倒计时在原来日志和复盘的位置，按秒跳动
   await page.getByRole('link', { name: '今日' }).click();
@@ -123,7 +153,7 @@ test('议题倒计时：在议题里设定，今日、本周、议题地图和�
   await page.getByRole('button', { name: '编辑议题：城市绿地' }).click();
   await page.getByRole('button', { name: '清除' }).click();
   await page.getByRole('button', { name: '保存' }).click();
-  await expect(card.getByTestId('theme-countdown')).toHaveCount(0);
+  await expect(branch.getByTestId('theme-node-countdown')).toHaveCount(0);
   await page.getByRole('link', { name: '今日' }).click();
   await expect(page.getByTestId('countdown-card')).toContainText('还没有议题设了倒计时');
 });

@@ -14,6 +14,10 @@ const RULES = [
   { name: '课题停滞', text: `进行中的课题超过 ${T.staleDays} 天没有任何更新。` },
   { name: '遗留任务', text: '课题或议题已经结束，下面还有没完成的任务。' },
   { name: '议题缺少课题', text: `进行中的议题下没有进行中的课题（新建 ${T.themeGraceDays} 天内不提醒）。` },
+  {
+    name: '过期未完成的任务',
+    text: '排在今天之前的某一天、到现在还没打勾的任务，逐条列出。可以直接打勾、排到今天或移出计划。',
+  },
 ];
 
 export function ChecksPage() {

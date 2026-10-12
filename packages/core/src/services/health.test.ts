@@ -28,6 +28,21 @@ function ageEverything() {
 }
 
 describe('健康检查（读数据库）', () => {
+  it('排在之前某天、还没打勾的任务进提醒；打勾或改排到今天后消失', () => {
+    const theme = createTheme(db, { title: '议题' });
+    const project = createProject(db, { title: '论文', themeId: theme.id, status: 'active' });
+    const t = createTask(db, { title: '写提纲', projectId: project.id, scheduledDate: '2026-09-25' });
+    const missed = () => getHealthReport(db, '2026-09-28').issues.filter((i) => i.rule === 'missed_task');
+
+    expect(missed()).toMatchObject([
+      { key: `missed_task:${t.id}`, target: { type: 'task', id: t.id, date: '2026-09-25' } },
+    ]);
+    updateTask(db, t.id, { scheduledDate: '2026-09-28' });
+    expect(missed()).toEqual([]);
+    updateTask(db, t.id, { scheduledDate: '2026-09-27', status: 'done' });
+    expect(missed()).toEqual([]);
+  });
+
   it('课题最近活动取活动日志、任务和里程碑中最新的', () => {
     const theme = createTheme(db, { title: '议题' });
     const project = createProject(db, { title: '论文', themeId: theme.id });

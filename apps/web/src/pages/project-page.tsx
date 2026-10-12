@@ -73,7 +73,13 @@ function ProjectContent({ project }: { project: ProjectDetailDto }) {
         {project.theme && (
           <>
             <ChevronRight className="size-3.5" />
-            <span>{project.theme.title}</span>
+            <Link
+              to="/themes/$themeId"
+              params={{ themeId: String(project.theme.id) }}
+              className="hover:underline"
+            >
+              {project.theme.title}
+            </Link>
           </>
         )}
       </nav>

@@ -20,6 +20,7 @@ export const HEALTH_RULES = [
   'stale_project',
   'orphaned_tasks',
   'dormant_theme',
+  'missed_task',
 ] as const;
 export type HealthRule = (typeof HEALTH_RULES)[number];
 export type HealthSeverity = 'danger' | 'warning' | 'info';
@@ -29,9 +30,14 @@ export const HEALTH_RULE_LABELS: Record<HealthRule, string> = {
   stale_project: '课题停滞',
   orphaned_tasks: '遗留任务',
   dormant_theme: '议题缺少课题',
+  missed_task: '过期未完成的任务',
 };
 
-export type HealthTarget = { type: 'project'; id: number } | { type: 'theme'; id: number };
+export type HealthTarget =
+  | { type: 'project'; id: number }
+  | { type: 'theme'; id: number }
+  /** 任务：date 是它原来排在的那一天。 */
+  | { type: 'task'; id: number; date: string; title: string };
 
 export type HealthIssue = {
   /** 稳定的标识，例如 'stale_project:3'。 */
@@ -63,8 +69,16 @@ export type HealthSnapshot = {
     taskDone: number;
     taskTotal: number;
   }[];
-  /** 未完成的任务：只需要归属。 */
-  openTasks: { projectId: number | null; themeId: number | null; status: TaskStatus }[];
+  /** 未完成的任务。 */
+  openTasks: {
+    id: number;
+    title: string;
+    projectId: number | null;
+    themeId: number | null;
+    status: TaskStatus;
+    /** 排在哪一天（没排到具体日子为空）。 */
+    scheduledDate: string | null;
+  }[];
 };
 
 const SEVERITY_ORDER: Record<HealthSeverity, number> = { danger: 0, warning: 1, info: 2 };
@@ -162,6 +176,32 @@ export function evaluateHealth(s: HealthSnapshot): HealthIssue[] {
       title: `议题"${th.title}"下没有进行中的课题`,
       detail: '新建一个课题推进它，或者把议题设为"休眠"。',
       target: { type: 'theme', id: th.id },
+    });
+  }
+
+  // 5. 过期未完成的任务：排在今天之前的某一天，到现在还没打勾（可能做完了忘了勾）。
+  //    课题或议题已经结束的，交给"遗留任务"汇总，这里不重复。
+  const themeById = new Map(s.themes.map((th) => [th.id, th]));
+  const missed = s.openTasks
+    .filter((t) => t.scheduledDate !== null && t.scheduledDate < s.today)
+    .filter((t) => {
+      if (t.projectId !== null) {
+        const p = projectById.get(t.projectId);
+        return !p || (p.status !== 'done' && p.status !== 'dropped');
+      }
+      return t.themeId === null || themeById.get(t.themeId)?.status !== 'closed';
+    })
+    .sort((a, b) => a.scheduledDate!.localeCompare(b.scheduledDate!) || a.id - b.id);
+  for (const t of missed) {
+    const date = t.scheduledDate!;
+    const ago = daysBetween(date, s.today);
+    issues.push({
+      key: `missed_task:${t.id}`,
+      rule: 'missed_task',
+      severity: 'warning',
+      title: `任务"${t.title}"排在${monthDay(date)}，还没完成`,
+      detail: `${ago === 1 ? '昨天' : `${ago} 天前`}的安排${t.status === 'blocked' ? '（受阻）' : ''}。做完了就打勾；还要做就排到今天，不做了就移出计划。`,
+      target: { type: 'task', id: t.id, date, title: t.title },
     });
   }
 

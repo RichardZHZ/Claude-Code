@@ -133,13 +133,11 @@ test('桌面小窗：显示提醒条目，可以直接开始、结束专注，�
   await focus.getByLabel('专注的议题').selectOption({ label: THEME });
   await focus.getByRole('button', { name: '开始' }).click();
   await expect(focus.getByTestId('focus-clock')).toHaveAttribute('aria-label', /^已专注/);
-  await expect(page).toHaveTitle('科研小助理 · 今天');
 
-  // 满两小时：小窗里出现提醒，标题带"提醒"（桌面应用据此把小窗提到最上层），但不会自动停止
+  // 满两小时：小窗里出现提醒（另发系统通知），但不会自动停止；小窗不会因此浮到其他程序上面
   await page.clock.fastForward('02:00:05');
   const reminder = focus.getByTestId('focus-reminder');
   await expect(reminder).toContainText('已经连续专注 2 小时');
-  await expect(page).toHaveTitle('科研小助理 · 提醒');
   await expect(focus.getByRole('button', { name: '结束并存档' })).toBeVisible();
   await reminder.getByRole('button', { name: '知道了' }).click();
   await expect(reminder).toHaveCount(0);

@@ -23,20 +23,23 @@ test('议题 → 课题 → 任务 → 本周 → 今天 → 完成', async ({ p
   await themeDialog.getByLabel('名称').fill(THEME);
   await themeDialog.getByLabel('核心问题').fill('热岛强度与居民健康有什么关系？\n哪些绿化措施最有效？');
   await themeDialog.getByRole('button', { name: '创建' }).click();
-  const themeCard = page.getByTestId('theme-card').filter({ hasText: THEME });
-  await expect(themeCard).toBeVisible();
-  await expect(themeCard.getByText('哪些绿化措施最有效？')).toBeVisible();
+  // 议题地图是树状图：议题节点上只有关键信息，核心问题在议题页
+  const themeBranch = page.getByTestId('theme-branch').filter({ hasText: THEME });
+  await expect(themeBranch.getByTestId('theme-node')).toBeVisible();
+  await themeBranch.getByRole('link', { name: THEME }).click();
+  await expect(page.getByTestId('theme-questions')).toContainText('哪些绿化措施最有效？');
+  await page.getByRole('navigation', { name: '位置' }).getByRole('link', { name: '议题地图' }).click();
 
-  // 2. 在议题下新建课题
-  await themeCard.getByRole('button', { name: `在"${THEME}"下新建课题` }).click();
+  // 2. 在议题节点上新建课题，课题出现在议题的分支上
+  await themeBranch.getByRole('button', { name: `在"${THEME}"下新建课题` }).click();
   const projectDialog = page.getByRole('dialog');
   await projectDialog.getByLabel('名称').fill(PROJECT);
   await expect(projectDialog.getByLabel('所属议题')).toHaveValue(/\d+/);
   await projectDialog.getByRole('button', { name: '创建' }).click();
-  await expect(themeCard.getByRole('link', { name: PROJECT })).toBeVisible();
+  await expect(themeBranch.getByRole('link', { name: PROJECT })).toBeVisible();
 
   // 3. 进入课题：加里程碑和任务
-  await themeCard.getByRole('link', { name: PROJECT }).click();
+  await themeBranch.getByRole('link', { name: PROJECT }).click();
   await expect(page.getByRole('heading', { name: PROJECT })).toBeVisible();
   await page.getByLabel('新里程碑名称').fill('完成数据分析');
   await page.getByTestId('milestones').getByRole('button', { name: '添加' }).click();
@@ -85,8 +88,10 @@ test('议题 → 课题 → 任务 → 本周 → 今天 → 完成', async ({ p
   // 8. 回到议题地图，进度已更新（3 个任务完成 1 个）
   await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '议题地图' }).click();
   await expect(
-    page.getByTestId('project-row').filter({ hasText: PROJECT }).getByText('1/3 · 33%'),
+    page.getByTestId('project-node').filter({ hasText: PROJECT }).getByText('1/3 · 33%'),
   ).toBeVisible();
+  // 里程碑挂在课题后面
+  await expect(themeBranch.getByTestId('milestone-chip').filter({ hasText: '完成数据分析' })).toBeVisible();
 
   // 刷新后数据仍在（确实写进了数据库）
   await page.goto('/today');
@@ -114,7 +119,9 @@ test('收件箱：随手记 → 转为议题下的任务', async ({ page }) => {
 
   // 任务出现在议题下，也因为勾选了"排进本周"而出现在本周
   await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '议题地图' }).click();
-  await expect(page.getByTestId('theme-card').getByText('读一篇城市热岛的经典综述')).toBeVisible();
+  await expect(page.getByTestId('explore-node').getByText('读一篇城市热岛的经典综述')).toBeVisible();
+  await page.getByTestId('explore-node').click();
+  await expect(page.getByTestId('theme-tasks').getByText('读一篇城市热岛的经典综述')).toBeVisible();
   await page.getByRole('link', { name: '本周' }).click();
   await expect(page.getByTestId('week-tasks').getByText('读一篇城市热岛的经典综述')).toBeVisible();
 });
