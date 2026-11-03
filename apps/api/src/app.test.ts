@@ -335,12 +335,22 @@ describe('专心致志与回顾', () => {
     });
     expect(again.status).toBe(400);
 
-    clock = new Date(2026, 8, 28, 10, 30);
+    // 10:00 暂停、10:20 继续：暂停的 20 分钟不计入
+    clock = new Date(2026, 8, 28, 10, 0);
+    const paused = await call<FocusSessionDto>('POST', '/focus/pause', { id: started.data.id });
+    expect(paused.data).toMatchObject({ durationMs: 60 * 60_000 });
+    expect(paused.data.pausedAt).not.toBeNull();
+    clock = new Date(2026, 8, 28, 10, 20);
+    const resumed = await call<FocusSessionDto>('POST', '/focus/resume', {});
+    expect(resumed.data).toMatchObject({ pausedAt: null, pausedMs: 20 * 60_000 });
+
+    clock = new Date(2026, 8, 28, 10, 50);
     const stopped = await call<FocusSessionDto>('POST', '/focus/stop', {});
     expect(stopped.data.durationMs).toBe(90 * 60_000);
+    expect((await call('POST', '/focus/pause', {})).status).toBe(400);
 
     await call('POST', '/focus/start', { themeId: theme.data.id, mode: 'timer', plannedMinutes: 25 });
-    clock = new Date(2026, 8, 28, 11, 0);
+    clock = new Date(2026, 8, 28, 11, 20);
     const state = await call<FocusStateDto>('GET', '/focus');
     expect(state.data.running).toBeNull();
     expect(state.data.todayMs).toBe(115 * 60_000);

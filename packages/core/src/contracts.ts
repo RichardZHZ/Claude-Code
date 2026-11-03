@@ -164,11 +164,11 @@ export const startFocusInput = z
     path: ['plannedMinutes'],
   })
   .transform((v) => (v.mode === 'stopwatch' ? { ...v, plannedMinutes: undefined } : v));
-/** 结束专注：可以带上要结束的那一段的 id，它若已经自动结束，就直接返回，不报错。 */
-export const stopFocusInput = z.object({ id: id.optional() });
+/** 结束、暂停、继续专注：可以带上那一段的 id，它若已经自动结束，就直接返回，不报错。 */
+export const focusTargetInput = z.object({ id: id.optional() });
 export const focusQuery = z.object({ today: date.optional() });
 export type StartFocusInput = z.infer<typeof startFocusInput>;
-export type StopFocusInput = z.infer<typeof stopFocusInput>;
+export type FocusTargetInput = z.infer<typeof focusTargetInput>;
 
 // ---------- 收件箱 ----------
 

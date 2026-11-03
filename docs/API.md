@@ -33,11 +33,13 @@
 | --- | --- | --- |
 | GET | `/focus?today=YYYY-MM-DD` | 专注状态：进行中的一段 `running`、今天和本周的合计 `todayMs` / `weekMs`、各议题的 `todayMs` / `weekMs` / `totalMs` / `sessions`、今天的各段 `todaySessions`。合计只算已结束的段 |
 | POST | `/focus/start` | 开始专注 `{ themeId, mode: "stopwatch" \| "timer", plannedMinutes? }`；倒计时必须带 `plannedMinutes`（1–600）。已有进行中的一段时返回 400 |
-| POST | `/focus/stop` | 结束进行中的一段并存档 `{ id? }`。带上 id 时，若那一段已经自动结束，直接返回它 |
+| POST | `/focus/stop` | 结束进行中的一段并存档 `{ id? }`（暂停中的也可以直接结束）。带上 id 时，若那一段已经自动结束，直接返回它 |
+| POST | `/focus/pause` | 暂停进行中的一段 `{ id? }`；已经在暂停的直接返回 |
+| POST | `/focus/resume` | 继续暂停中的一段 `{ id? }`；没在暂停的直接返回。正计时从这一刻重新算"连续 4 小时" |
 | DELETE | `/focus/sessions/:id` | 删除一段记录；删除进行中的一段等于放弃，不存档 |
 | GET | `/recap/:weekKey` | 一周回顾：`days[]`（周一到周日，每天的 `topTasks`、`completed`、`unfinished`、`focusMs`、`focusByTheme`、`focusSessions`），以及整周的 `completedCount`、`focusMs`、`focusByTheme` |
 
-倒计时到点不依赖页面：每次读写专注状态或回顾之前，服务端先把已经到点的倒计时补上结束时刻（取设定的到点时刻）。时长单位都是毫秒。
+到点和自动暂停不依赖页面：每次读写专注状态或回顾之前，服务端先把已经到点的倒计时补上结束时刻（取到点时刻），把连续计时满 4 小时的正计时补上暂停起点（取满 4 小时的时刻）。每一段带 `pausedAt`（正在暂停的起点）、`pausedMs`（累计暂停）、`resumedAt`（最近一次继续），`durationMs` 已经扣掉暂停的时间。时长单位都是毫秒。
 
 ## 课题与里程碑
 

@@ -36,6 +36,13 @@
       "when": 1790608015519,
       "tag": "0004_focus_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793674505893,
+      "tag": "0005_focus_pause",
+      "breakpoints": true
     }
   ]
 }

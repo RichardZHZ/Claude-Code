@@ -34,9 +34,11 @@ export const ACTIVITY_ACTIONS = [
   'promoted',
   'linked',
   'unlinked',
-  // 专心致志：开始、手动结束（倒计时自然结束记为 completed）。
+  // 专心致志：开始、手动结束（倒计时自然结束记为 completed）、暂停（含自动暂停）、继续。
   'started',
   'stopped',
+  'paused',
+  'resumed',
 ] as const;
 export const RESOURCE_OWNER_TYPES = ['theme', 'project', 'task'] as const;
 export const RESOURCE_KINDS = ['url', 'zotero', 'file'] as const;

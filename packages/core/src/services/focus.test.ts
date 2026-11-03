@@ -4,7 +4,15 @@ import { runMigrations } from '../migrate.ts';
 import { focusSessions } from '../schema.ts';
 import { toDateString } from '../week.ts';
 import { listActivity } from './activity.ts';
-import { deleteFocusSession, getFocusState, settleFocus, startFocus, stopFocus } from './focus.ts';
+import {
+  deleteFocusSession,
+  getFocusState,
+  pauseFocus,
+  resumeFocus,
+  settleFocus,
+  startFocus,
+  stopFocus,
+} from './focus.ts';
 import { saveDayPlan } from './plans.ts';
 import { createProject } from './projects.ts';
 import { getRecapDay, getWeekRecap } from './recap.ts';
@@ -110,6 +118,70 @@ describe('专心致志', () => {
 
     deleteTheme(db, theme.id);
     expect(db.select().from(focusSessions).all()).toHaveLength(0);
+  });
+
+  it('暂停、继续、暂停中直接结束：时长不含暂停的时间', () => {
+    const theme = createTheme(db, { title: '写论文' });
+    const s = startFocus(db, { themeId: theme.id, mode: 'stopwatch' }, at(9));
+    const paused = pauseFocus(db, { id: s.id }, at(9, 20));
+    expect(paused).toMatchObject({ pausedAt: at(9, 20), durationMs: 20 * MIN });
+    // 已经在暂停：再点一次不变
+    expect(pauseFocus(db, {}, at(9, 25)).pausedAt).toEqual(at(9, 20));
+    // 暂停中不能开始新的一段
+    expect(() => startFocus(db, { themeId: theme.id, mode: 'stopwatch' }, at(9, 30))).toThrow('还在进行');
+
+    const resumed = resumeFocus(db, {}, at(9, 50));
+    expect(resumed).toMatchObject({ pausedAt: null, pausedMs: 30 * MIN, resumedAt: at(9, 50) });
+    pauseFocus(db, {}, at(10));
+    // 暂停中直接结束：这次暂停的 10 分钟也不计入
+    const stopped = stopFocus(db, {}, at(10, 10));
+    expect(stopped).toMatchObject({ durationMs: 30 * MIN, pausedMs: 40 * MIN, pausedAt: null });
+    expect(listActivity(db, { limit: 4 }).map((a) => a.summary)).toEqual([
+      '结束专注"写论文"，共 30 分',
+      '暂停专注"写论文"（已专注 30 分）',
+      '继续专注"写论文"',
+      '暂停专注"写论文"（已专注 20 分）',
+    ]);
+    expect(() => resumeFocus(db, {}, at(10, 20))).toThrow('现在没有进行中的专注');
+  });
+
+  it('倒计时暂停后到点顺延', () => {
+    const theme = createTheme(db, { title: '写论文' });
+    startFocus(db, { themeId: theme.id, mode: 'timer', plannedMinutes: 25 }, at(9));
+    pauseFocus(db, {}, at(9, 10));
+    // 暂停中不会到点
+    expect(getFocusState(db, '2026-09-28', at(10)).running).toMatchObject({ durationMs: 10 * MIN });
+    resumeFocus(db, {}, at(10));
+    // 还剩 15 分钟：10:15 到点
+    expect(getFocusState(db, '2026-09-28', at(10, 14)).running).not.toBeNull();
+    const state = getFocusState(db, '2026-09-28', at(10, 30));
+    expect(state.running).toBeNull();
+    expect(state.todaySessions[0]).toMatchObject({ durationMs: 25 * MIN, endedAt: at(10, 15) });
+  });
+
+  it('正计时连续满 4 小时自动暂停（不依赖页面），继续后重新计算', () => {
+    const theme = createTheme(db, { title: '写论文' });
+    startFocus(db, { themeId: theme.id, mode: 'stopwatch' }, at(8));
+    expect(settleFocus(db, at(11, 59))).toBeNull();
+
+    // 下午 3 点才回来：12 点就已经自动暂停，时长停在 4 小时
+    const state = getFocusState(db, '2026-09-28', at(15));
+    expect(state.running).toMatchObject({ pausedAt: at(12), durationMs: 240 * MIN });
+    expect(listActivity(db, { limit: 1 })[0]?.summary).toBe('专注"写论文"连续计时满 4 小时，自动暂停');
+
+    // 继续后从 3 点重新算连续 4 小时
+    resumeFocus(db, {}, at(15));
+    expect(getFocusState(db, '2026-09-28', at(18)).running).toMatchObject({
+      pausedAt: null,
+      durationMs: 420 * MIN,
+    });
+    expect(getFocusState(db, '2026-09-28', at(20)).running).toMatchObject({
+      pausedAt: at(19),
+      durationMs: 480 * MIN,
+    });
+
+    // 结束时不把自动暂停后的时间算进去
+    expect(stopFocus(db, {}, at(21)).durationMs).toBe(480 * MIN);
   });
 
   it('删除一段记录；删除进行中的一段等于放弃', () => {

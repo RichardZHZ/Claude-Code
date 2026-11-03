@@ -73,6 +73,8 @@ export function WidgetPage() {
         `${s.themeTitle}：${formatFocusDuration((s.plannedMinutes ?? 0) * 60_000)}，已存档`,
       );
     },
+    onAutoPause: (s) =>
+      notify('专心致志', `"${s.themeTitle}"已经连续计时 4 小时，自动暂停了。还在做就点"继续"。`),
   });
 
   // 桌面应用的小窗窗口是透明的，页面背景也要透明，只显示卡片。
@@ -89,18 +91,22 @@ export function WidgetPage() {
     return () => clearInterval(timer);
   }, [qc]);
 
-  // 正计时每满两小时发一次系统通知（每个门槛只发一次，主窗口和小窗共用记录）。
+  // 正计时每连续满两小时发一次系统通知（每段连续计时的每个门槛只发一次，主窗口和小窗共用记录）。
   const runningId = focus.running?.id;
+  const stretchStart = focus.running ? (focus.running.resumedAt ?? focus.running.startedAt) : null;
   const reminders = focus.reminders;
-  const elapsed = focus.elapsed;
+  const stretchMs = focus.stretchMs;
   const runningTitle = focus.running?.themeTitle;
   useEffect(() => {
     if (runningId === undefined || reminders === 0) return;
-    const key = `rp.focus.notified.${runningId}`;
+    const key = `rp.focus.notified.${runningId}:${stretchStart}`;
     if (reminders <= readStored(key, 0)) return;
     writeStored(key, reminders);
-    notify('专心致志', `"${runningTitle}"已经连续专注 ${formatFocusDuration(elapsed)}，起来活动一下吧。`);
-  }, [runningId, reminders, elapsed, runningTitle]);
+    notify(
+      '专心致志',
+      `"${runningTitle}"已经连续专注 ${formatFocusDuration(stretchMs)}，起来活动一下吧。连续满 4 小时会自动暂停。`,
+    );
+  }, [runningId, stretchStart, reminders, stretchMs, runningTitle]);
 
   useEffect(() => {
     document.title = '科研小助理 · 今天';
@@ -230,7 +236,6 @@ export function WidgetPage() {
           本周 {weekDone}/{weekTasks.length}
         </span>
         {carryOver > 0 && <span>待接手 {carryOver}</span>}
-        {focus.todayAllMs > 0 && <span>今日专注 {formatFocusDuration(focus.todayAllMs)}</span>}
       </footer>
     </div>
   );

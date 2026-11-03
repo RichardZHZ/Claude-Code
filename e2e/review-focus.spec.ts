@@ -43,9 +43,21 @@ test('正计时：选议题开始，结束后存档；回顾页按天列出，�
   await expect(card.getByRole('button', { name: '倒计时' })).toBeDisabled();
   await expect(card.getByLabel('专注的议题')).toBeDisabled();
 
+  // 暂停：表盘停住；继续后接着走
+  await card.getByRole('button', { name: '暂停' }).click();
+  await expect(clock).toHaveAttribute('aria-label', /^已专注 · 已暂停 /);
+  const frozen = await clock.textContent();
+  await page.waitForTimeout(1500);
+  await expect(clock).toHaveText(frozen!);
+  await card.getByRole('button', { name: '继续' }).click();
+  await expect(clock).toHaveAttribute('aria-label', /^已专注 \d/);
+  await expect(clock).not.toHaveText(frozen!, { timeout: 3000 });
+
   await card.getByRole('button', { name: '结束并存档' }).click();
   await expect(page.getByText(new RegExp(`已存档：${THEME} \\d+ 秒`))).toBeVisible();
-  await expect(card.getByTestId('focus-totals')).toContainText('今天');
+  await expect(card.getByTestId('focus-totals')).toContainText('本议题：今天');
+  // 今天所有议题的专注合计
+  await expect(card.getByTestId('focus-day-total')).toContainText(/今天共专注 \d+ 秒/);
   await expect(card.getByTestId('focus-theme-totals')).toContainText(THEME);
 
   // 回顾页：今天这一天列出这段专注
@@ -122,9 +134,9 @@ test('桌面小窗：显示提醒条目，可以直接开始、结束专注，�
   const issues = page.getByTestId('widget-issues');
   await expect(issues.getByTestId('widget-issue').first()).toHaveText(checks.issues[0]!.title);
   await expect(issues).toContainText(`全部 ${checks.issues.length} 条`);
-  // 小窗只列前 3 条（紧急的在前）
-  await expect(issues.getByTestId('widget-issue')).toHaveCount(Math.min(3, checks.issues.length));
-  if (checks.issues.slice(0, 3).some((i) => i.title.includes('小窗里的里程碑'))) {
+  // 小窗只列前 5 条（紧急的在前）
+  await expect(issues.getByTestId('widget-issue')).toHaveCount(Math.min(5, checks.issues.length));
+  if (checks.issues.slice(0, 5).some((i) => i.title.includes('小窗里的里程碑'))) {
     await expect(issues).toContainText('小窗里的里程碑');
   }
 
@@ -134,14 +146,26 @@ test('桌面小窗：显示提醒条目，可以直接开始、结束专注，�
   await focus.getByRole('button', { name: '开始' }).click();
   await expect(focus.getByTestId('focus-clock')).toHaveAttribute('aria-label', /^已专注/);
 
-  // 满两小时：小窗里出现提醒（另发系统通知），但不会自动停止；小窗不会因此浮到其他程序上面
+  await expect(focus.getByTestId('focus-day-total')).toContainText('今天共专注');
+
+  // 满两小时：小窗里出现提醒（另发系统通知），不会停；小窗不会因此浮到其他程序上面
   await page.clock.fastForward('02:00:05');
   const reminder = focus.getByTestId('focus-reminder');
   await expect(reminder).toContainText('已经连续专注 2 小时');
-  await expect(focus.getByRole('button', { name: '结束并存档' })).toBeVisible();
+  await expect(focus.getByRole('button', { name: '暂停' })).toBeVisible();
   await reminder.getByRole('button', { name: '知道了' }).click();
   await expect(reminder).toHaveCount(0);
   await expect(page).toHaveTitle('科研小助理 · 今天');
+
+  // 连续满 4 小时：自动暂停，表盘停在 4:00:00，可以继续或结束
+  await page.clock.fastForward('02:00:00');
+  await expect(focus.getByTestId('focus-auto-paused')).toContainText('自动暂停');
+  const clock = focus.getByTestId('focus-clock');
+  await expect(clock).toHaveText('4:00:00');
+  await expect(clock).toHaveAttribute('aria-label', /已自动暂停/);
+  await page.clock.fastForward('00:10:00');
+  await expect(clock).toHaveText('4:00:00');
+  await expect(focus.getByRole('button', { name: '继续' })).toBeVisible();
 
   await focus.getByRole('button', { name: '结束并存档' }).click();
   await expect(page.getByText(new RegExp(`已存档：${THEME}`))).toBeVisible();

@@ -26,7 +26,7 @@
   - `zotero.ts` Zotero 本地 API 只读客户端（可注入 `fetch`）；`testing/fake-zotero.ts` 是测试用的假 Zotero。
   - `services/drafts.ts` 周计划、日计划草稿：确定性打分并写出理由，供 MCP 和 Claude 润色。
   - `countdown.ts` 倒计时的天/时/分/秒拆分和中文描述，纯函数，前端（`/countdown`）和 MCP 共用。
-  - `focus.ts` 专心致志的计时计算（已进行、剩余、两小时提醒次数、时长的中文说法），纯函数，前端（`/focus`）、服务层和 MCP 共用。
+  - `focus.ts` 专心致志的计时计算（扣掉暂停的时长、剩余、连续计时、4 小时自动暂停、两小时提醒次数、时长的中文说法），纯函数，前端（`/focus`）、服务层和 MCP 共用。
   - `rules/health.ts` 健康检查的纯函数规则与阈值；`services/health.ts` 负责从数据库组装快照。
   - 入口：`@researchpilot/core`（服务端）、`/config`（桌面主进程）、`/contracts`、`/enums`、`/week`、`/countdown`、`/focus`、`/health-rules`（前端可用）、`/testing`（仅测试）。
 - `apps/api`：Hono，只做路由、参数校验（`validate.ts`）和序列化，调用 core。路由按领域放在 `src/routes/`。`createApp({ db, today, zotero, backup })` 可注入依赖，测试用 `app.request()`。`src/server.ts` 负责打开数据库、迁移、定时备份和监听；`src/index.ts` 是开发入口（只有 /api），`src/serve.ts` 是正式入口（`web.ts` 托管 `apps/web/dist`）。
@@ -46,7 +46,7 @@
 - 服务层每个写操作都要调用 `logActivity`（`services/activity.ts`），带上 `projectId` / `themeId` 上下文和 `payload.title`；没有实际变化时不记。新增动作要同时更新 `describeActivity` 的中文说明和 `enums.ts` 的 `ACTIVITY_ACTIONS`。
 - 工作日志、日复盘、周复盘已按用户要求移除（0.3.0），不要再加回来。活动日志里旧的 `journaled` / `reviewed` 记录保留，`describeActivity` 仍能描述。
 - 倒计时的截止时刻存毫秒时间戳（`themes.countdown_at`），剩余时间只在显示时用 `countdown.ts` 计算，不存库。
-- 专心致志（`focus_sessions`）同一时间最多进行一段；倒计时到点由服务层 `settleFocus` 在读写前补上结束时刻，不依赖页面。时长只在读取时计算。计时的开始和结束只在应用里操作，MCP 只读。
+- 专心致志（`focus_sessions`）同一时间最多进行一段（暂停中也算）；可以暂停、继续，暂停的时间不计入。倒计时到点、正计时连续满 4 小时自动暂停，都由服务层 `settleFocus` 在读写前补记，不依赖页面；前端和 MCP 用 `focus.ts` 的同一套计算。时长只在读取时计算。计时的开始、暂停和结束只在应用里操作，MCP 只读。
 - 回顾页（0.4.0 恢复）只展示已有数据（任务、日计划、专注记录），不写复盘，不新增存储。
 - 字体：中文仿宋（内置朱雀仿宋）、西文 Garamond（内置 EB Garamond），在 `apps/web/src/main.tsx` 导入、`index.css` 的 `--font-sans` 设定。新增字体要确认许可证允许随应用分发，并补进 `apps/web/public/licenses/fonts.txt`。
 - `resources` 是多态关联，没有外键：删除议题、课题、任务的服务函数要调用 `pruneOrphanResources`。

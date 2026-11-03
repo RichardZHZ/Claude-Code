@@ -188,7 +188,7 @@ describe('草稿与写入', () => {
     // 10 分钟前开始、还在进行的一段（不计入今天、本周的合计）。
     startFocus(db, { themeId: theme.id, mode: 'stopwatch' }, new Date(Date.now() - 10 * 60_000));
     const focus = (await call('rp_get_focus')).text;
-    expect(focus).toMatch(/- 进行中：议题 #\d+ 气候金融（正计时，已进行 10 分）/);
+    expect(focus).toMatch(/- 进行中：议题 #\d+ 气候金融（正计时，已专注 10 分）/);
     expect(focus).toContain('- 今天 1 小时 15 分');
     expect(focus).toMatch(
       /议题 #\d+ 气候金融：今天 1 小时 15 分，本周 1 小时 15 分，累计 1 小时 15 分（1 段）/,

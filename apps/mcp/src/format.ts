@@ -8,7 +8,9 @@ import {
   TASK_STATUS_LABELS,
   THEME_STATUS_LABELS,
   describeCountdown,
+  focusAutoPaused,
   focusElapsedMs,
+  focusPausedAt,
   focusRemainingMs,
   formatFocusDuration,
   weekdayOf,
@@ -223,9 +225,13 @@ export function formatFocusState(s: FocusState, now: Date): string {
     const left = focusRemainingMs(r, now);
     const timing =
       left === null
-        ? `已进行 ${dur(focusElapsedMs(r, now))}`
+        ? `已专注 ${dur(focusElapsedMs(r, now))}`
         : `设定 ${r.plannedMinutes} 分钟，还剩 ${dur(left)}`;
-    out.push(`- 进行中：议题 #${r.themeId} ${r.themeTitle}（${FOCUS_MODE_LABELS[r.mode]}，${timing}）`);
+    const paused = focusPausedAt(r, now) !== null;
+    const state = focusAutoPaused(r, now) ? '连续计时满 4 小时，已自动暂停' : paused ? '已暂停' : '';
+    out.push(
+      `- ${paused ? '暂停中' : '进行中'}：议题 #${r.themeId} ${r.themeTitle}（${FOCUS_MODE_LABELS[r.mode]}，${timing}${state ? `，${state}` : ''}）`,
+    );
   } else {
     out.push('- 现在没有进行中的专注');
   }
