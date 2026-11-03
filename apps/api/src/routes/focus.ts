@@ -4,11 +4,13 @@ import {
   deleteFocusSession,
   getFocusState,
   getWeekRecap,
+  pauseFocus,
+  resumeFocus,
   startFocus,
   stopFocus,
   type Db,
 } from '@researchpilot/core';
-import { focusQuery, startFocusInput, stopFocusInput, weekKeyParam } from '@researchpilot/core/contracts';
+import { focusQuery, focusTargetInput, startFocusInput, weekKeyParam } from '@researchpilot/core/contracts';
 import { idParam, validate } from '../validate.ts';
 
 const weekParam = z.object({ weekKey: weekKeyParam });
@@ -22,8 +24,14 @@ export function focusRoutes(db: Db, today: () => string, now: () => Date) {
     .post('/focus/start', validate('json', startFocusInput), (c) =>
       c.json(startFocus(db, c.req.valid('json'), now()), 201),
     )
-    .post('/focus/stop', validate('json', stopFocusInput), (c) =>
+    .post('/focus/stop', validate('json', focusTargetInput), (c) =>
       c.json(stopFocus(db, c.req.valid('json'), now())),
+    )
+    .post('/focus/pause', validate('json', focusTargetInput), (c) =>
+      c.json(pauseFocus(db, c.req.valid('json'), now())),
+    )
+    .post('/focus/resume', validate('json', focusTargetInput), (c) =>
+      c.json(resumeFocus(db, c.req.valid('json'), now())),
     )
     .delete('/focus/sessions/:id', validate('param', idParam), (c) => {
       deleteFocusSession(db, c.req.valid('param').id, now());

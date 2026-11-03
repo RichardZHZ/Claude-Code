@@ -171,8 +171,9 @@ export const resources = sqliteTable(
 );
 
 /**
- * 专心致志：一段专注时间，记在某个议题下。ended_at 为空表示正在进行，同一时间最多一段。
- * 倒计时（timer）有设定时长，到点由服务层补上 ended_at；正计时（stopwatch）由用户手动结束。
+ * 专心致志：一段专注时间，记在某个议题下。ended_at 为空表示正在进行（含暂停中），同一时间最多一段。
+ * 倒计时（timer）有设定时长，到点由服务层补上 ended_at；正计时（stopwatch）由用户手动结束，
+ * 连续计时满 4 小时由服务层自动暂停。时长的计算见 focus.ts。
  */
 export const focusSessions = sqliteTable(
   'focus_sessions',
@@ -186,6 +187,12 @@ export const focusSessions = sqliteTable(
     plannedMinutes: integer('planned_minutes'),
     startedAt: integer('started_at', { mode: 'timestamp_ms' }).notNull(),
     endedAt: integer('ended_at', { mode: 'timestamp_ms' }),
+    /** 正在暂停的起点；没在暂停为空。 */
+    pausedAt: integer('paused_at', { mode: 'timestamp_ms' }),
+    /** 已经暂停过的总时长（毫秒），不含正在进行的这次暂停。 */
+    pausedMs: integer('paused_ms').notNull().default(0),
+    /** 最近一次继续的时刻（用来判断连续计时满 4 小时自动暂停）；没暂停过为空。 */
+    resumedAt: integer('resumed_at', { mode: 'timestamp_ms' }),
     ...timestamps,
   },
   (t) => [

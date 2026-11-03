@@ -204,7 +204,11 @@ export function describeActivity(e: Pick<ActivityLogEntry, 'entityType' | 'actio
     }
     case 'started':
     case 'stopped':
-      return `${e.action === 'started' ? '开始' : '结束'}${what}${name}`;
+    case 'paused':
+    case 'resumed': {
+      const verb = { started: '开始', stopped: '结束', paused: '暂停', resumed: '继续' }[e.action];
+      return `${verb}${what}${name}`;
+    }
     case 'updated': {
       if (changes.currentStatus && Object.keys(changes).length === 1) return `更新${what}${name}的现状`;
       const fields = Object.keys(changes)
@@ -227,6 +231,12 @@ function describeFocus(action: ActivityAction, p: ActivityPayload): string {
     }
     case 'stopped':
       return `结束专注${name}${took}`;
+    case 'paused':
+      return p.auto === true
+        ? `专注${name}连续计时满 4 小时，自动暂停`
+        : `暂停专注${name}${took ? `（已专注 ${formatFocusDuration(p.durationMs as number)}）` : ''}`;
+    case 'resumed':
+      return `继续专注${name}`;
     case 'completed':
       return `完成专注${name}（${mode}）${took}`;
     case 'deleted':

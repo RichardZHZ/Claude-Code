@@ -145,14 +145,16 @@ export const useFocus = (today: string, refetchInterval: number | false = 30_000
     refetchInterval,
   });
 
-/** 开始、结束、放弃（删除）专注。 */
+/** 开始、结束、暂停、继续、放弃（删除）专注。 */
 export function useFocusActions() {
   const start = useAction((input: StartFocusInput) => api.post<FocusSessionDto>('/focus/start', input));
   const stop = useAction((id: number) => api.post<FocusSessionDto>('/focus/stop', { id }), {
     success: (s) => `已存档：${s.themeTitle} ${formatFocusDuration(s.durationMs)}`,
   });
+  const pause = useAction((id: number) => api.post<FocusSessionDto>('/focus/pause', { id }));
+  const resume = useAction((id: number) => api.post<FocusSessionDto>('/focus/resume', { id }));
   const remove = useAction((id: number) => api.delete(`/focus/sessions/${id}`));
-  return { start, stop, remove };
+  return { start, stop, pause, resume, remove };
 }
 
 /** 一周回顾：每天完成的任务、最重要的事、专注时间。 */
